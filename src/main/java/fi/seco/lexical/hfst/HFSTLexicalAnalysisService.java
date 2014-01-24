@@ -1,0 +1,452 @@
+package fi.seco.lexical.hfst;
+
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import fi.seco.hfst.Transducer;
+import fi.seco.hfst.TransducerAlphabet;
+import fi.seco.hfst.TransducerHeader;
+import fi.seco.hfst.UnweightedTransducer;
+import fi.seco.hfst.WeightedTransducer;
+import fi.seco.lexical.ILexicalAnalysisService;
+import fi.seco.lexical.LexicalAnalysisUtil;
+import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
+
+public class HFSTLexicalAnalysisService implements ILexicalAnalysisService {
+	private static final Logger log = LoggerFactory.getLogger(HFSTLexicalAnalysisService.class);
+
+	private final Map<Locale, Transducer> at = new HashMap<Locale, Transducer>();
+	private final Map<Locale, Transducer> ht = new HashMap<Locale, Transducer>();
+	private final Map<Locale, Transducer> it = new HashMap<Locale, Transducer>();
+
+	private final Collection<Locale> supportedAnalyzeLocales = new ArrayList<Locale>();
+	private final Collection<Locale> supportedHyphenationLocales = new ArrayList<Locale>();
+	private final Collection<Locale> supportedInflectionLocales = new ArrayList<Locale>();
+
+	public static class Result {
+
+		private Map<String, List<String>> globalTags = new HashMap<String, List<String>>();
+
+		public static class WordPart {
+			private String lemma;
+			private final Map<String, List<String>> tags = new HashMap<String, List<String>>();
+
+			public WordPart() {}
+
+			public WordPart(String lemma) {
+				this.lemma = lemma;
+			}
+
+			public void setLemma(String lemma) {
+				this.lemma = lemma;
+			}
+
+			public String getLemma() {
+				return lemma;
+			}
+
+			public Map<String, List<String>> getTags() {
+				return tags;
+			}
+
+			public void addTag(String key, String value) {
+				if (!tags.containsKey(key)) tags.put(key, new ArrayList<String>());
+				tags.get(key).add(value);
+			}
+
+			@Override
+			public String toString() {
+				return lemma + "(" + tags.toString() + ")";
+			}
+		}
+
+		private final List<WordPart> wordParts = new ArrayList<WordPart>();
+
+		@Override
+		public String toString() {
+			return wordParts.toString() + "&" + globalTags.toString() + ":" + weight;
+		}
+
+		private final float weight;
+
+		public Result() {
+			this.weight = 1.0f;
+		}
+
+		public Result(float weight) {
+			this.weight = weight;
+		}
+
+		public float getWeight() {
+			return weight;
+		}
+
+		public List<WordPart> getParts() {
+			return wordParts;
+		}
+
+		public Result addPart(WordPart wp) {
+			wordParts.add(wp);
+			return this;
+		}
+
+		public Map<String, List<String>> getGlobalTags() {
+			return globalTags;
+		}
+
+		public void setGlobalTags(Map<String, List<String>> globalTags) {
+			this.globalTags = globalTags;
+		}
+
+		public void addGlobalTag(String key, String value) {
+			if (!globalTags.containsKey(key)) globalTags.put(key, new ArrayList<String>());
+			globalTags.get(key).add(value);
+		}
+
+	}
+
+	public HFSTLexicalAnalysisService() {
+		try {
+			BufferedReader r = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream("analysis-locales")));
+			String line;
+			while ((line = r.readLine()) != null)
+				supportedAnalyzeLocales.add(new Locale(line));
+			r.close();
+		} catch (IOException e) {
+			log.error("Couldn't read locale information. Claiming to support no analysis/baseform languages");
+		}
+		try {
+			BufferedReader r = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream("inflection-locales")));
+			String line;
+			while ((line = r.readLine()) != null)
+				supportedInflectionLocales.add(new Locale(line));
+			r.close();
+		} catch (IOException e) {
+			log.error("Couldn't read locale information. Claiming to support no inflection languages");
+		}
+		try {
+			BufferedReader r = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream("hyphenation-locales")));
+			String line;
+			while ((line = r.readLine()) != null)
+				supportedHyphenationLocales.add(new Locale(line));
+			r.close();
+		} catch (IOException e) {
+			log.error("Couldn't read locale information. Claiming to support no hyphenation languages");
+		}
+	}
+
+	private Transducer getTransducer(Locale l, String type, Map<Locale, Transducer> s) {
+		Transducer t = s.get(l);
+		if (t != null) return t;
+		synchronized (this) {
+			t = s.get(l);
+			if (t != null) return t;
+			String file = l.getLanguage() + "-" + type + ".hfst.ol";
+			try {
+				InputStream transducerfile = HFSTLexicalAnalysisService.class.getResourceAsStream(file);
+				if (transducerfile == null) {
+					log.error("Couldn't find transducer " + file);
+					return null;
+				}
+				DataInputStream charstream = new DataInputStream(transducerfile);
+				TransducerHeader h = new TransducerHeader(charstream);
+				TransducerAlphabet a = new TransducerAlphabet(charstream, h.getSymbolCount());
+				if (h.isWeighted())
+					t = new WeightedTransducer(charstream, h, a);
+				else t = new UnweightedTransducer(charstream, h, a);
+			} catch (IOException e) {
+				log.error("Couldn't initialize transducer " + file, e);
+				return null;
+			}
+			s.put(l, t);
+			return t;
+		}
+	}
+
+	public static class WordToResults {
+		private final String word;
+		private final List<Result> analysis;
+
+		public WordToResults(String word, List<Result> analysis) {
+			this.word = word;
+			this.analysis = analysis;
+		}
+
+		public String getWord() {
+			return word;
+		}
+
+		public List<Result> getAnalysis() {
+			return analysis;
+		}
+
+		@Override
+		public String toString() {
+			return word + ": " + analysis;
+		}
+	}
+
+	private static List<Result> toResult(List<Transducer.Result> analysis) {
+		List<Result> ret = new ArrayList<Result>(analysis.size());
+		for (Transducer.Result tr : analysis) {
+			if (tr.getSymbols().isEmpty()) continue;
+			Result r = new Result(tr.getWeight());
+			final StringBuilder lemma = new StringBuilder();
+			WordPart w = null;
+			if (tr.getSymbols().get(0).startsWith("[")) { //[BOUNDARY=LEXITEM][LEMMA='san'][POS=NOUN][KTN=5][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='oma'][POS=ADJECTIVE][KTN=1%0][CMP=POS][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='lehti'][POS=NOUN][KTN=7][KAV=F][NUM=SG][CASE=PAR][ALLO=A][BOUNDARY=LEXITEM][CASECHANGE=NONE]
+				boolean parsingSegment = false;
+				boolean parsingTag = false;
+				for (String s : tr.getSymbols()) {
+					if (s.length() == 0) continue;
+					if (s.charAt(0) == '[') {
+						if (s.length() == 1) {
+							parsingSegment = false;
+							parsingTag = true;
+						} else {
+							String[] tmp = s.split("=");
+							if ("[BOUNDARY".equals(tmp[0]) || "[WORD_ID".equals(tmp[0])) {
+								parsingSegment = false;
+								parsingTag = false;
+								if (w != null && w.getLemma() != null) r.addPart(w);
+								w = new WordPart();
+								lemma.setLength(0);
+							} else if ("[SEGMENT".equals(tmp[0])) {
+								parsingSegment = true;
+								parsingTag = false;
+								lemma.setLength(0);
+							} else if (s.charAt(s.length() - 1) == ']') {
+								parsingSegment = false;
+								parsingTag = false;
+								w.addTag(tmp[0].substring(1), tmp[1].substring(0, tmp[1].length() - 1));
+							}
+						}
+					} else if (s.charAt(s.length() - 1) == ']') {
+						if (parsingSegment)
+							w.addTag("SEGMENT", lemma.toString());
+						else if (parsingTag) {
+							String[] tmp = lemma.toString().split("=");
+							w.addTag(tmp[0], tmp[1]);
+						} else w.setLemma(lemma.toString());
+						lemma.setLength(0);
+						parsingSegment = false;
+						parsingTag = false;
+					} else lemma.append(s);
+				}
+				if (!w.getTags().isEmpty()) if (w.getLemma() != null)
+					r.addPart(w);
+				else r.setGlobalTags(w.getTags());
+			} else { //sanomat#lehti N Par Sg 	write[V]+V+PROG 	writ[N]+ING[N/N]+N söka<verb><infinitiv><aktiv>
+				w = new WordPart();
+				boolean previousWasTag = false;
+				for (String s : tr.getSymbols())
+					if (s.length() == 0 || s.charAt(0) == '#' || s.charAt(0) == ':')
+						previousWasTag = true;
+					else if (s.charAt(0) == ' ') {
+						previousWasTag = true;
+						if (s.length() > 1) if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
+							r.addGlobalTag(s.substring(1), s.substring(1));
+						else w.addTag(s.substring(1), s.substring(1));
+					} else if (s.charAt(0) == '+') {
+						previousWasTag = true;
+						if (s.length() > 1) if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
+							r.addGlobalTag(s.substring(1), s.substring(1));
+						else w.addTag(s.substring(1), s.substring(1));
+					} else if (s.charAt(0) == '<' && s.charAt(s.length() - 1) == '>') {
+						previousWasTag = true;
+						if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
+							r.addGlobalTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
+						else w.addTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
+					} else if (s.charAt(0) == '<' || s.charAt(0) == '>') {
+						previousWasTag = true;
+						if (s.length() > 1) if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
+							r.addGlobalTag(s.substring(1), s.substring(1));
+						else w.addTag(s.substring(1), s.substring(1));
+					} else if (s.charAt(0) == '[' && s.charAt(s.length() - 1) == ']') {
+						previousWasTag = true;
+						if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
+							r.addGlobalTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
+						else w.addTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
+					} else {
+						if (previousWasTag) {
+							if (lemma.length() > 0) {
+								w.setLemma(lemma.toString());
+								r.addPart(w);
+							}
+							w = new WordPart();
+							lemma.setLength(0);
+							previousWasTag = false;
+						}
+						lemma.append(s);
+					}
+				if (lemma.length() > 0) {
+					w.setLemma(lemma.toString());
+					r.addPart(w);
+				}
+				boolean hasTags = !r.getGlobalTags().isEmpty();
+				if (!hasTags) for (WordPart wp : r.getParts())
+					if (!wp.getTags().isEmpty()) {
+						hasTags = true;
+						break;
+					}
+				if (!hasTags && !r.getParts().isEmpty()) {
+					Result r2 = new Result();
+					WordPart fwp = r.getParts().get(0);
+					for (int j = 1; j < r.getParts().size(); j++)
+						fwp.addTag(r.getParts().get(j).getLemma(), r.getParts().get(j).getLemma());
+					r2.addPart(fwp);
+					r = r2;
+				}
+			}
+			ret.add(r);
+		}
+		return ret;
+	}
+
+	public List<WordToResults> analyze(String str, Locale lang) {
+		Transducer tc = getTransducer(lang, "analysis", at);
+		String[] labels = LexicalAnalysisUtil.split(str);
+		List<WordToResults> ret = new ArrayList<WordToResults>(labels.length);
+		for (String label : labels)
+			if (!"".equals(label)) {
+				List<Result> r = toResult(tc.analyze(label));
+				if (r.isEmpty()) r = toResult(tc.analyze(label.toLowerCase()));
+				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(label)));
+				ret.add(new WordToResults(label, r));
+			}
+		return ret;
+	}
+
+	@Override
+	public String summarize(String string, Locale lang) {
+		return string;
+	}
+
+	@Override
+	public Collection<Locale> getSupportedSummarizeLocales() {
+		return Collections.emptyList();
+	}
+
+	private String getBestLemma(WordToResults cr, Locale lang) {
+		float cw = Float.MAX_VALUE;
+		StringBuilder cur = new StringBuilder();
+		for (Result r : cr.getAnalysis())
+			if (r.getWeight() < cw) {
+				cur.setLength(0);
+				for (WordPart wp : r.getParts())
+					cur.append(wp.getLemma());
+				cw = r.getWeight();
+			}
+		return cur.toString();
+	}
+
+	@Override
+	public String baseform(String string, Locale lang) {
+		try {
+			List<WordToResults> crc = analyze(string, lang);
+			StringBuilder ret = new StringBuilder();
+			for (WordToResults cr : crc) {
+				ret.append(getBestLemma(cr, lang));
+				ret.append(' ');
+			}
+			return ret.toString().trim();
+		} catch (ArrayIndexOutOfBoundsException e) {
+			return string;
+		}
+
+	}
+
+	@Override
+	public Collection<Locale> getSupportedBaseformLocales() {
+		return supportedAnalyzeLocales;
+	}
+
+	public Collection<Locale> getSupportedAnalyzeLocales() {
+		return supportedAnalyzeLocales;
+	}
+
+	public static void main(String[] args) throws Exception {
+		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
+		System.out.println(hfst.analyze("sanomalehteä luin Suomessa", new Locale("fi")));
+		System.out.println(hfst.baseform("Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi")));
+		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
+		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, new Locale("fi")));
+		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, new Locale("fi")));
+		//System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi")));
+		//System.out.println(fdg.analyze("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
+		//System.out.println(fdg.baseform("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
+		//System.out.println(fdg.baseform("johdanto Hyvin toimiva sosiaalihuolto ja siihen liittyvä palvelujärjestelmä ovat keskeinen osa ihmisten hyvinvoinnin ja perusoikeuksien toteuttamista. Sosiaalihuollon järjestämisen ja yksilönsosiaalisten oikeuksien toteutumisen perusta on perustuslain 19 §:ssä. Se turvaa jokaiselleoikeuden välttämättömään toimeentuloon ja huolenpitoon", new Locale("fi")));
+	}
+
+	private String firstToString(List<Transducer.Result> rl) {
+		StringBuilder sb = new StringBuilder();
+		for (Transducer.Result r : rl) {
+			for (String s : r.getSymbols())
+				sb.append(s);
+			if (sb.length() > 0) return sb.toString();
+		}
+		return "";
+	}
+
+	@Override
+	public String hyphenate(String string, Locale lang) {
+		Transducer tc = getTransducer(lang, "hyphenation", ht);
+		String[] labels = LexicalAnalysisUtil.split(string);
+		StringBuilder ret = new StringBuilder();
+		for (String label : labels)
+			if (!"".equals(label)) {
+				String r = firstToString(tc.analyze(label));
+				if (r.isEmpty()) r = firstToString(tc.analyze(label.toLowerCase()));
+				if (r.isEmpty()) r = label;
+				if (r.charAt(r.length() - 1) == '-' || r.charAt(r.length() - 1) == '^')
+					ret.append(r.substring(0, r.length() - 1));
+				else ret.append(r);
+				ret.append(' ');
+			}
+		if (ret.length() > 0) ret.setLength(ret.length() - 1);
+		return ret.toString();
+	}
+
+	@Override
+	public Collection<Locale> getSupportedHyphenationLocales() {
+		return supportedHyphenationLocales;
+	}
+
+	@Override
+	public String inflect(String string, List<String> inflections, boolean baseform, Locale lang) {
+		Transducer tc = getTransducer(lang, "inflection", it);
+		StringBuilder ret = new StringBuilder();
+		outer: for (WordToResults part : analyze(string, lang)) {
+			String bl = getBestLemma(part, lang);
+			for (String inflection : inflections) {
+				String inflected = firstToString(tc.analyze(bl + " " + inflection));
+				if (!inflected.isEmpty()) {
+					ret.append(inflected);
+					ret.append(' ');
+					continue outer;
+				}
+			}
+			ret.append(baseform ? bl : part.getWord());
+			ret.append(' ');
+		}
+		return ret.toString().trim();
+	}
+
+	@Override
+	public Collection<Locale> getSupportedInflectionLocales() {
+		return supportedInflectionLocales;
+	}
+}

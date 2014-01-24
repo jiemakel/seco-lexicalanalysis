@@ -1,0 +1,6 @@
+target
+.idea
+.settings
+.project
+.classpath
+/src/main/resources/fi/seco/lexical/hfst/
