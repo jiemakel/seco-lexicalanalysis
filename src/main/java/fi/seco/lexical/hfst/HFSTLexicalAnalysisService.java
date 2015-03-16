@@ -22,14 +22,15 @@ import fi.seco.hfst.TransducerAlphabet;
 import fi.seco.hfst.TransducerHeader;
 import fi.seco.hfst.UnweightedTransducer;
 import fi.seco.hfst.WeightedTransducer;
+import fi.seco.lexical.ALexicalAnalysisService;
 import fi.seco.lexical.ILexicalAnalysisService;
 import fi.seco.lexical.LexicalAnalysisUtil;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 
-public class HFSTLexicalAnalysisService implements ILexicalAnalysisService {
+public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	private static final Logger log = LoggerFactory.getLogger(HFSTLexicalAnalysisService.class);
 
-	private final Map<Locale, Transducer> at = new HashMap<Locale, Transducer>();
+	protected final Map<Locale, Transducer> at = new HashMap<Locale, Transducer>();
 	private final Map<Locale, Transducer> ht = new HashMap<Locale, Transducer>();
 	private final Map<Locale, Transducer> it = new HashMap<Locale, Transducer>();
 
@@ -149,7 +150,7 @@ public class HFSTLexicalAnalysisService implements ILexicalAnalysisService {
 		}
 	}
 
-	private Transducer getTransducer(Locale l, String type, Map<Locale, Transducer> s) {
+	protected Transducer getTransducer(Locale l, String type, Map<Locale, Transducer> s) {
 		Transducer t = s.get(l);
 		if (t != null) return t;
 		synchronized (this) {
@@ -200,7 +201,7 @@ public class HFSTLexicalAnalysisService implements ILexicalAnalysisService {
 		}
 	}
 
-	private static List<Result> toResult(List<Transducer.Result> analysis) {
+	protected static List<Result> toResult(List<Transducer.Result> analysis) {
 		List<Result> ret = new ArrayList<Result>(analysis.size());
 		for (Transducer.Result tr : analysis) {
 			if (tr.getSymbols().isEmpty()) continue;
@@ -220,9 +221,12 @@ public class HFSTLexicalAnalysisService implements ILexicalAnalysisService {
 							String[] tmp = s.split("=");
 							if ("[BOUNDARY".equals(tmp[0]) || "[WORD_ID".equals(tmp[0])) {
 								parsingSegment = false;
-								parsingTag = false;
-								if (w != null && w.getLemma() != null) r.addPart(w);
-								w = new WordPart();
+								parsingTag = false;								
+								if (w == null) w = new WordPart();
+								else if (w.getLemma() != null) {
+									r.addPart(w);
+									w = new WordPart();
+								}
 								lemma.setLength(0);
 							} else if ("[SEGMENT".equals(tmp[0])) {
 								parsingSegment = true;
@@ -231,6 +235,7 @@ public class HFSTLexicalAnalysisService implements ILexicalAnalysisService {
 							} else if (s.charAt(s.length() - 1) == ']') {
 								parsingSegment = false;
 								parsingTag = false;
+								if (w == null) w = new WordPart();
 								w.addTag(tmp[0].substring(1), tmp[1].substring(0, tmp[1].length() - 1));
 							}
 						}
@@ -238,8 +243,11 @@ public class HFSTLexicalAnalysisService implements ILexicalAnalysisService {
 						if (parsingSegment)
 							w.addTag("SEGMENT", lemma.toString());
 						else if (parsingTag) {
-							String[] tmp = lemma.toString().split("=");
-							w.addTag(tmp[0], tmp[1]);
+							if (s.equals("]")) lemma.append('[');
+							else {
+								String[] tmp = lemma.toString().split("=");
+								w.addTag(tmp[0], tmp[1]);
+							}
 						} else w.setLemma(lemma.toString());
 						lemma.setLength(0);
 						parsingSegment = false;
@@ -330,17 +338,7 @@ public class HFSTLexicalAnalysisService implements ILexicalAnalysisService {
 		return ret;
 	}
 
-	@Override
-	public String summarize(String string, Locale lang) {
-		return string;
-	}
-
-	@Override
-	public Collection<Locale> getSupportedSummarizeLocales() {
-		return Collections.emptyList();
-	}
-
-	private String getBestLemma(WordToResults cr, Locale lang) {
+	protected String getBestLemma(WordToResults cr, Locale lang) {
 		float cw = Float.MAX_VALUE;
 		StringBuilder cur = new StringBuilder();
 		for (Result r : cr.getAnalysis())

@@ -1,7 +1,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 	<groupId>fi.seco</groupId>
 	<artifactId>lexicalanalysis</artifactId>
 	<name>Lexical analysis services</name>
@@ -19,6 +19,21 @@
 		</plugins>
 	</build>
 	<dependencies>
+		<dependency>
+			<groupId>marmot</groupId>
+			<artifactId>marmot</artifactId>
+			<version>2014-10-22</version>
+		</dependency>
+		<dependency>
+			<groupId>is2</groupId>
+			<artifactId>anna</artifactId>
+			<version>3.6</version>
+		</dependency>
+		<dependency>
+  			<groupId>org.apache.opennlp</groupId>
+  			<artifactId>opennlp-tools</artifactId>
+  			<version>1.5.3</version>
+		</dependency>
 		<dependency>
 			<groupId>com.dyuproject.protostuff</groupId>
 			<artifactId>protostuff-core</artifactId>

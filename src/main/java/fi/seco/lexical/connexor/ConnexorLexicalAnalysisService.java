@@ -27,6 +27,7 @@ import com.carrotsearch.hppc.ObjectIntOpenHashMap;
 import com.dyuproject.protostuff.LinkedBuffer;
 import com.dyuproject.protostuff.ProtostuffIOUtil;
 
+import fi.seco.lexical.ALexicalAnalysisService;
 import fi.seco.lexical.ILexicalAnalysisService;
 import fi.seco.lexical.LexicalAnalysisUtil;
 import fi.seco.lexical.connexor.model.ConnexorRequest;
@@ -34,7 +35,7 @@ import fi.seco.lexical.connexor.model.LANGResponse;
 import fi.seco.lexical.connexor.model.MMDResponse;
 import fi.seco.lexical.connexor.model.MPTResponse;
 
-public class ConnexorLexicalAnalysisService implements ILexicalAnalysisService {
+public class ConnexorLexicalAnalysisService extends ALexicalAnalysisService {
 
 	private static final Logger log = LoggerFactory.getLogger(ConnexorLexicalAnalysisService.class);
 
@@ -331,26 +332,6 @@ public class ConnexorLexicalAnalysisService implements ILexicalAnalysisService {
 
 	public ConnexorLexicalAnalysisService() {
 		this("nipo.seco.hut.fi");
-	}
-
-	@Override
-	public String hyphenate(String string, Locale lang) {
-		return string;
-	}
-
-	@Override
-	public Collection<Locale> getSupportedHyphenationLocales() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public String inflect(String string, List<String> inflections, boolean baseform, Locale lang) {
-		return string;
-	}
-
-	@Override
-	public Collection<Locale> getSupportedInflectionLocales() {
-		return Collections.emptyList();
 	}
 
 }

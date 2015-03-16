@@ -22,7 +22,7 @@ import org.tartarus.snowball.ext.RussianStemmer;
 import org.tartarus.snowball.ext.SpanishStemmer;
 import org.tartarus.snowball.ext.SwedishStemmer;
 
-public class SnowballLexicalAnalysisService implements ILexicalAnalysisService {
+public class SnowballLexicalAnalysisService extends ALexicalAnalysisService {
 
 	private final Map<Locale, SnowballProgram> s = new HashMap<Locale, SnowballProgram>();
 	{
@@ -67,36 +67,6 @@ public class SnowballLexicalAnalysisService implements ILexicalAnalysisService {
 	@Override
 	public Collection<Locale> getSupportedBaseformLocales() {
 		return s.keySet();
-	}
-
-	@Override
-	public Collection<Locale> getSupportedSummarizeLocales() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public String summarize(String string, Locale lang) {
-		return string;
-	}
-
-	@Override
-	public String hyphenate(String string, Locale lang) {
-		return string;
-	}
-
-	@Override
-	public Collection<Locale> getSupportedHyphenationLocales() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public String inflect(String string, List<String> inflections, boolean baseform, Locale lang) {
-		return string;
-	}
-
-	@Override
-	public Collection<Locale> getSupportedInflectionLocales() {
-		return Collections.emptyList();
 	}
 
 }

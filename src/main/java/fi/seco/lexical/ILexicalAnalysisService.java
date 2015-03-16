@@ -20,5 +20,5 @@ public interface ILexicalAnalysisService {
 	public String inflect(String string, List<String> inflections, boolean baseform, Locale lang);
 
 	public Collection<Locale> getSupportedInflectionLocales();
-
+	
 }
