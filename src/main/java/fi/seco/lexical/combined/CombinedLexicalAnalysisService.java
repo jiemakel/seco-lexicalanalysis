@@ -132,12 +132,12 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	private static final Parser fiparser = new Parser();
 	static {
 		try {
-		OptionsSuper options = new OptionsSuper();
-		fiparser.options = options;
-		Pipe pipe = new Pipe(options);
-		fiparser.pipe = pipe;
-		ParametersFloat params = new ParametersFloat(0);
-		fiparser.params = params;
+		  OptionsSuper options = new OptionsSuper();
+		  fiparser.options = options;
+		  Pipe pipe = new Pipe(options);
+		  fiparser.pipe = pipe;
+		  ParametersFloat params = new ParametersFloat(0);
+		  fiparser.params = params;
 		  ZipInputStream zis = new ZipInputStream(CombinedLexicalAnalysisService.class.getResourceAsStream("parser.model"));
           zis.getNextEntry();
           DataInputStream dis = new DataInputStream(zis);
@@ -369,7 +369,10 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					sd.setLemmas(lemmas);
 					sd.setPPos(poss);
 					sd.setFeats(feats);
-					SentenceData09 out = fiparser.parse(sd, fiparser.params, false, fiparser.options);
+					SentenceData09 out;
+					synchronized(fiparser) {
+						out = fiparser.parse(sd, fiparser.params, false, fiparser.options);
+					}
 					i = j;
 					for (int k=0;k<out.forms.length;k++) {
 						WordToResults wtr = ret.get(i++);
@@ -395,6 +398,12 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
 //		las.analyze("Maanmittauksessa Swardlucken kiintopiste on kuin onkin maastoon pysyvästi merkitty maastonkohta, jonka sijainti tai korkeus on tarkasti määritetty suhteessa muihin kiintopisteisiin tai tiettyyn koordinaatistoon. Merkkinä voi olla esimerkiksi pultti kalliossa tai kadun pinnassa, maston tai majakan huippu, tai valtakunnan rajapyykki. Kiintopisteitä käytetään lähtökohtana, kun määritetään muiden maastonkohtien sijainteja tai korkeuksia. Kiintopiste voi olla tasokiintopiste, jolloin sen paikka tunnetaan tarkasti leveys- ja korkeuspiirien suhteen, korkeuskiintopiste, jolloin sen paikka tunnetaan pystysuunnassa suhteessa keskimääräiseen merenpinnan tasoon tai teoreettiseen geoidiin, tai se voi olla molempia samanaikaisesti. Suomessa valtakunnallista kiintopisterekisteriä pitää maanmittauslaitos. Kunnilla on omia kiintopisteverkkojaan. Tasokiitopisteiden mittauksissa on aiemmin käytetty kolmiomittausta, kun taas nykyään käytetään erityisesti maanmittaustarkoitukseen suunniteltuja, tavallista tarkempia satelliittipaikannusmenetelmiä. Korkeuskiintopisteet on puolestaan määritetty vaaitsemalla. Mittaustavoista johtuen kiintopisteen paikan epävarmuus on suurimmillaan korkeudessa. Vaakatasossa tarkkuus on parhaimmillaan millimetriluokkaa, samalla kun pystysuuntaan harvoin päästään laajemmalla alalla edes alhaisiin senttimetreihin, satelliittejakaan hyödyntäen. Tamman tiineys kestää noin 11 kalenterikuukautta. Tiineyden alussa tammaa voidaan kouluttaa aivan tavalliseen tapaan. Kun tamman vatsa alkaa kasvaa, ja sen paino alkaa nousta, on käytettävä maalaisjärkeä. Tammalta ei saa vaatia liikaa. On tärkeää, että kantava tamma saa olla paljon ulkona ja liikkua mielihalujensa mukaan. Eräät tammat saattavat muuttua hieman ärtyisiksi tiineyden aikana: asiat, jotka ovat olleet niille yhdentekeviä aikaisemmin, ovatkin nyt vaikeampia. Tammaa saattaa esimerkiksi ärsyttää, kun sitä harjataan vatsan alta tai kun satulavyötä kiristetään. Jotkut tammat saattavat muuttua levottomiksi tiineyden edetessä. Kaikki tämä on aivan normaalia, joten syytä huoleen ei ole. Tämä kaikki on selvä merkki siitä, että tamma tietää, mikä sitä odottaa. Eräät tammat ovat tiineyden aikana niin ärtyisiä, että niiden vatsa pitäisi jättää rauhaan. Kun tamma on kantava, täytyy ajatella tamman ja kohdussa olevan varsan terveyttä. Tiineelle tammalle ei kannata antaa tavallista rehua. Kantaville tammoille on tarkoitettu oma erityisrehu, jota kaikki rehuntoimittajat myyvät. Muutama päivä ennen synnytystä jo aiemmin varsoneiden tammojen utareisiin ilmestyy ns. vahatapit. Siitä tietää, että varsominen on lähellä. Selkie on kylä Kontiolahdella. Se sijaitsee kunnan itäosassa Ilomantsintieltä erkanevan Jakokoski-Heinävaara -tien eli Mönnin-Selkien maantien (yhdystie 5100) varrella. Kylän naapurikyliä ovat Heinävaara ja Mönni. Asukkaita kylällä on noin 270.[1] Selillä on kyläkoulu sekä oma evankelisluterilainen hautausmaakappeli Selkien-Mönnin hautausmaalla. Alakoulussa on tällä hetkellä noin 35 oppilasta Seliltä ja Mönnistä. Kylästä on arkipäivisin linja-autoyhteys Kontiolahden ja Joensuun suuntiin. Liikuntatiloja on Palotalon nykyaikaisessa urheiluhallissa. Mustavaaran laskettelukeskus sijoittuu kylän etelälaidalle. Selkie-Lehtoi on nauhamainen kyläkokonaisuus, joka ryhmittyy korkealle vaaralinjalle vanhan Tohmajärven maantien varteen. Tie seuraa paikoitellen 1600-luvun ensimmäistä, rinteille kaskiviljelyn tuoman asutuksen synnyttämää kylätien linjaa. Vaarat nousevat paikoin yli 200 metrin korkeudelle merenpinnasta. Kylältä on toistaiseksi laajoja selkeitä näkymiä ympäristöön: suora näköyhteys jopa Joensuun keskustaan, Pielisjoelle ja Kolille asti. Möykynmäki on seudun tieliikenneympäristöistä paikallisesti koettavin. Kylän nimi \"Selkien kylä\" taipuu muodossa \"Selillä, Seliltä, Selille\"; Lehtoin kylä (varhain oma kylänsä) \"Lehtoilla, Lehtoilta, Lehtoille\". Nykyinen kirjoitusasu on todennäköisesti peräisin Venäjän vallan ajalta, ja tämä on edesauttanut nykyisiäkin poikkeavia kielellisiä variaatioita. Virallisissa yhteyksissä sallitaan muodollisesti \"Selkiellä\" jne. Selkien pohjoisin osa kuuluu valtakunnallisesti merkittäviin rakennettuihin kulttuuriympäristöihin. Samoin Selkien-Lehtoin-Heinävaaran kyläalue on yksi valtioneuvoston periaatepäätöksen mukaisista valtakunnallisesti arvokkaista maisema-alueista (koko maassa 156). Muiden Pohjois-Karjalan vaarakylien tapaan Selkie on osa ympäristöministeriön vuonna 1992, Suomen 75-vuotisjuhlavuonna, julkistamia Suomen kansallismaisemia[3]. Historiallisen, kulttuuri- tai luonnonmaisemansa puolesta merkityksellisiksi kansallismaisemiksi on valittu yhteensä 27 väljää aluekokonaisuutta (maisematyyppiä) ympäri Suomen. Luokittelulla ei ole juridista merkitystä. Selkien kyläalueeseen kuuluvat Selkien ja Lehtoin lisäksi muiden muassa Elovaara, Havukkavaara, Jukajoki ja Mustavaara. Kylän postitoimipaikka oli 81235 Lehtoi vuoden 2012 lopputalveen saakka. ", new Locale("fi"));
+		new Thread() {
+			@Override
+			public void run() {
+				System.out.println(las.analyze("sanomalehteä luin Suomessa", new Locale("fi")));
+			}
+		}.start();
 		System.out.println(las.analyze("sanomalehteä luin Suomessa", new Locale("fi")));
 /*		System.out.println(las.analyze("Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi")));
 		System.out.println(las.analyze("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", new Locale("fi")));*/
