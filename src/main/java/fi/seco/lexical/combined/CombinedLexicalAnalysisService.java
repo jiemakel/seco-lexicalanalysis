@@ -31,7 +31,10 @@ import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipInputStream;
 
+import marmot.core.Model;
+import marmot.core.SimpleTagger;
 import marmot.core.Tagger;
+import marmot.morph.MorphWeightVector;
 import marmot.morph.Sentence;
 import marmot.morph.Word;
 import opennlp.tools.sentdetect.SentenceDetector;
@@ -122,11 +125,11 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	static {
 		Tagger tmp=null;
 		try {
-			tmp = (Tagger) new ObjectInputStream(new GZIPInputStream(CombinedLexicalAnalysisService.class.getResourceAsStream("fin_model.marmot"))).readObject();
+			tmp = ((Tagger) new ObjectInputStream(new GZIPInputStream(CombinedLexicalAnalysisService.class.getResourceAsStream("fin_model.marmot"))).readObject());
 		} catch (ClassNotFoundException e) {
 		} catch (IOException e) {
 		}
-		fitag=tmp;
+		fitag = tmp;
 	}
 	
 	private static final Parser fiparser = new Parser();
@@ -317,7 +320,10 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					Arrays.sort(termFeatures);
 					tokens.add(new Word(wtr.getWord(),null,null,termFeatures,null,null));
 				}
-				List<List<String>> tags = fitag.tag(new Sentence(tokens));
+				List<List<String>> tags;
+				synchronized (fitag) {
+					tags = fitag.tag(new Sentence(tokens));
+				}
 				i = j;
 				for (int k = 0;k<tags.size();k++)
 					for (Result r : ret.get(i++).getAnalysis()) if (!r.getParts().isEmpty()) {
