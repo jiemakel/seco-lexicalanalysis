@@ -31,10 +31,7 @@ import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipInputStream;
 
-import marmot.core.Model;
-import marmot.core.SimpleTagger;
 import marmot.core.Tagger;
-import marmot.morph.MorphWeightVector;
 import marmot.morph.Sentence;
 import marmot.morph.Word;
 import opennlp.tools.sentdetect.SentenceDetector;
@@ -49,16 +46,14 @@ import org.slf4j.LoggerFactory;
 
 import fi.seco.hfst.Transducer;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService;
-import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result;
-import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.WordToResults;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 
 public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 
 	private static final Logger log = LoggerFactory.getLogger(CombinedLexicalAnalysisService.class);
 	
-	private Map<Locale,SentenceDetector> sdMap = new HashMap<Locale,SentenceDetector>();
-	private Map<Locale,Tokenizer> tMap = new HashMap<Locale,Tokenizer>();
+	private Map<Locale,SentenceModel> sdMap = new HashMap<Locale,SentenceModel>();
+	private Map<Locale,TokenizerModel> tMap = new HashMap<Locale,TokenizerModel>();
 	
 	private Set<Locale> supportedLocales = new HashSet<Locale>();
 	
@@ -75,13 +70,13 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	}
 	
 	private SentenceDetector getSentenceDetector(Locale lang) {
-		SentenceDetector sd = sdMap.get(lang);
-		if (sd!=null) return sd;
+		SentenceModel sd = sdMap.get(lang);
+		if (sd!=null) return new SentenceDetectorME(sd);
 		InputStream modelIn = CombinedLexicalAnalysisService.class.getResourceAsStream(lang+"-sent.bin");
 		try {
-		  sd = new SentenceDetectorME(new SentenceModel(modelIn));
+		  sd = new SentenceModel(modelIn);
 		  sdMap.put(lang,sd);
-		  return sd;
+		  return new SentenceDetectorME(sd);
 		}
 		catch (IOException e) {
 		  throw new IOError(e);
@@ -98,13 +93,13 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	}
 	
 	private Tokenizer getTokenizer(Locale lang) {
-		Tokenizer t = tMap.get(lang);
-		if (t!=null) return t;
+		TokenizerModel t = tMap.get(lang);
+		if (t!=null) return new TokenizerME(t);
 		InputStream modelIn = CombinedLexicalAnalysisService.class.getResourceAsStream(lang+"-token.bin");
 		try {
-		  t = new TokenizerME(new TokenizerModel(modelIn));
+		  t = new TokenizerModel(modelIn);
 		  tMap.put(lang,t);
-		  return t;
+		  return new TokenizerME(t);
 		}
 		catch (IOException e) {
 		  throw new IOError(e);
