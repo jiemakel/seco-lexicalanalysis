@@ -32,7 +32,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 
 	protected final Map<Locale, Transducer> at = new HashMap<Locale, Transducer>();
 	private final Map<Locale, Transducer> ht = new HashMap<Locale, Transducer>();
-	private final Map<Locale, Transducer> it = new HashMap<Locale, Transducer>();
+	protected final Map<Locale, Transducer> it = new HashMap<Locale, Transducer>();
 
 	private final Collection<Locale> supportedAnalyzeLocales = new ArrayList<Locale>();
 	private final Collection<Locale> supportedHyphenationLocales = new ArrayList<Locale>();
@@ -324,7 +324,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		return ret;
 	}
 
-	public List<WordToResults> analyze(String str, Locale lang) {
+	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections) {
 		Transducer tc = getTransducer(lang, "analysis", at);
 		String[] labels = LexicalAnalysisUtil.split(str);
 		List<WordToResults> ret = new ArrayList<WordToResults>(labels.length);
@@ -333,6 +333,24 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 				List<Result> r = toResult(tc.analyze(label));
 				if (r.isEmpty()) r = toResult(tc.analyze(label.toLowerCase()));
 				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(label)));
+				if (!inflections.isEmpty()) {
+					Transducer tic = getTransducer(lang, "inflection", it);
+					for (Result res : r) for (WordPart wp : res.getParts()) {
+						List<String> inflectedC = new ArrayList<String>();
+						List<String> inflectedFormC = new ArrayList<String>();
+						for (String inflection : inflections) {
+							String inflected = firstToString(tic.analyze(wp.getLemma()+ " " + inflection));
+							if (!inflected.isEmpty()) {
+								inflectedC.add(inflected);
+								inflectedFormC.add(inflection);
+							}
+						}
+						if (!inflectedC.isEmpty()) {
+							wp.getTags().put("INFLECTED",inflectedC);
+							wp.getTags().put("INFLECTED_FORM",inflectedFormC);
+						}
+					}
+				}
 				ret.add(new WordToResults(label, r));
 			}
 		return ret;
@@ -354,7 +372,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	@Override
 	public String baseform(String string, Locale lang) {
 		try {
-			List<WordToResults> crc = analyze(string, lang);
+			List<WordToResults> crc = analyze(string, lang,Collections.EMPTY_LIST);
 			StringBuilder ret = new StringBuilder();
 			for (WordToResults cr : crc) {
 				ret.append(getBestLemma(cr, lang));
@@ -378,7 +396,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
-		System.out.println(hfst.analyze("sanomalehteä luin Suomessa", new Locale("fi")));
+		System.out.println(hfst.analyze("sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" })));
 		System.out.println(hfst.baseform("Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi")));
 		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, new Locale("fi")));
@@ -389,7 +407,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		//System.out.println(fdg.baseform("johdanto Hyvin toimiva sosiaalihuolto ja siihen liittyvä palvelujärjestelmä ovat keskeinen osa ihmisten hyvinvoinnin ja perusoikeuksien toteuttamista. Sosiaalihuollon järjestämisen ja yksilönsosiaalisten oikeuksien toteutumisen perusta on perustuslain 19 §:ssä. Se turvaa jokaiselleoikeuden välttämättömään toimeentuloon ja huolenpitoon", new Locale("fi")));
 	}
 
-	private String firstToString(List<Transducer.Result> rl) {
+	protected String firstToString(List<Transducer.Result> rl) {
 		StringBuilder sb = new StringBuilder();
 		for (Transducer.Result r : rl) {
 			for (String s : r.getSymbols())
@@ -425,24 +443,32 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 
 	@Override
 	public String inflect(String string, List<String> inflections, boolean baseform, Locale lang) {
-		Transducer tc = getTransducer(lang, "inflection", it);
 		StringBuilder ret = new StringBuilder();
-		outer: for (WordToResults part : analyze(string, lang)) {
-			String bl = getBestLemma(part, lang);
-			for (String inflection : inflections) {
-				String inflected = firstToString(tc.analyze(bl + " " + inflection));
-				if (!inflected.isEmpty()) {
-					ret.append(inflected);
-					ret.append(' ');
-					continue outer;
-				}
-			}
-			ret.append(baseform ? bl : part.getWord());
+		for (WordToResults part : analyze(string, lang,inflections)) {
+			String inflected = getBestInflection(part, lang,baseform);
+			if (!inflected.isEmpty())
+				ret.append(inflected);
+			else ret.append(part.getWord()); 
 			ret.append(' ');
 		}
 		return ret.toString().trim();
 	}
 
+	protected String getBestInflection(WordToResults cr, Locale lang, boolean baseform) {
+		float cw = Float.MAX_VALUE;
+		StringBuilder cur = new StringBuilder();
+		for (Result r : cr.getAnalysis())
+			if (r.getWeight() < cw) {
+				cur.setLength(0);
+				for (WordPart wp : r.getParts())
+					if (wp.getTags().get("INFLECTED")!=null)
+						cur.append(wp.getTags().get("INFLECTED").get(0));
+					else if (baseform) cur.append(wp.getLemma());
+				cw = r.getWeight();
+			}
+		return cur.toString();
+	}
+	
 	@Override
 	public Collection<Locale> getSupportedInflectionLocales() {
 		return supportedInflectionLocales;
