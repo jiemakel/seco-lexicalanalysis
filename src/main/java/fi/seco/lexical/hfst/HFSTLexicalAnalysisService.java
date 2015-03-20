@@ -400,7 +400,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		System.out.println(hfst.baseform("Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi")));
 		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, new Locale("fi")));
-		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, new Locale("fi")));
+		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, new Locale("fi")));
 		//System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi")));
 		//System.out.println(fdg.analyze("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
 		//System.out.println(fdg.baseform("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
@@ -457,15 +457,26 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	protected String getBestInflection(WordToResults cr, Locale lang, boolean baseform) {
 		float cw = Float.MAX_VALUE;
 		StringBuilder cur = new StringBuilder();
+		boolean foundInflection = baseform;
 		for (Result r : cr.getAnalysis())
 			if (r.getWeight() < cw) {
-				cur.setLength(0);
-				for (WordPart wp : r.getParts())
-					if (wp.getTags().get("INFLECTED")!=null)
-						cur.append(wp.getTags().get("INFLECTED").get(0));
-					else if (baseform) cur.append(wp.getLemma());
 				cw = r.getWeight();
+				cur.setLength(0);
+				for (int i=0;i<r.getParts().size()-1;i++) {
+					WordPart wp = r.getParts().get(i);
+					List<String> segments = wp.getTags().get("SEGMENT");
+					if (segments!=null) 
+						for (String s : segments) if (!"-0".equals(s))
+							cur.append(s.replace("»", "").replace("{WB}","").replace("{XB}","").replace("{DB}","").replace("{MB}","").replace("{STUB}","").replace("{hyph?}",""));
+					else cur.append(wp.getLemma());
+				}
+				WordPart wp = r.getParts().get(r.getParts().size()-1);
+				if (wp.getTags().get("INFLECTED")!=null) {
+					cur.append(wp.getTags().get("INFLECTED").get(0));
+					foundInflection=true;
+				} else cur.append(wp.getLemma());
 			}
+		if (!foundInflection) cur.setLength(0);
 		return cur.toString();
 	}
 	
