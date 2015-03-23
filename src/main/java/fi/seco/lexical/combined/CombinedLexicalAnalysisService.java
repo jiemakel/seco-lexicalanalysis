@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 import fi.seco.hfst.Transducer;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result;
+import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.WordToResults;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 
 public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
@@ -418,6 +419,19 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	@Override
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections) {
 		return analyze(str,lang,inflections,2);
+	}
+	
+	@Override
+	public String inflect(String string, List<String> inflections, boolean baseform, Locale lang) {
+		StringBuilder ret = new StringBuilder();
+		for (WordToResults part : analyze(string, lang,inflections,0)) {
+			String inflected = getBestInflection(part, lang,baseform);
+			if (!inflected.isEmpty())
+				ret.append(inflected);
+			else ret.append(part.getWord()); 
+			ret.append(' ');
+		}
+		return ret.toString().trim();
 	}
 	
 	public static void main(String[] args) {
