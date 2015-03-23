@@ -323,6 +323,18 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		}
 		return ret;
 	}
+	
+	public double recognize(String str, Locale lang) {
+		Transducer tc = getTransducer(lang, "analysis", at);
+		int recognized = 0;
+		String[] labels = LexicalAnalysisUtil.split(str);
+		for (String label : labels)
+			for (Transducer.Result tr : tc.analyze(label))  if (!tr.getSymbols().isEmpty()) {
+				recognized++;
+				continue;
+			}
+		return ((double)recognized)/labels.length;
+	}
 
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections) {
 		Transducer tc = getTransducer(lang, "analysis", at);

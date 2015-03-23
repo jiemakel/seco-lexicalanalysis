@@ -250,10 +250,12 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		return Collections.singleton(pos);
 	}
 	
+	
+	
 	@Override
 	public String baseform(String string, Locale lang) {
 		try {
-			List<WordToResults> crc = analyze(string, lang,Collections.EMPTY_LIST,false);
+			List<WordToResults> crc = analyze(string, lang,Collections.EMPTY_LIST,0);
 			StringBuilder ret = new StringBuilder();
 			for (WordToResults cr : crc) {
 				ret.append(getBestLemma(cr, lang));
@@ -286,7 +288,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		return cur.toString();
 	}
 	
-	private List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean deprel) {
+	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, int depth) {
 		if (!supportedLocales.contains(lang)) return super.analyze(str, lang, inflections);
 		Tokenizer t = getTokenizer(lang);
 		Transducer tc = getTransducer(lang, "analysis", at);
@@ -317,7 +319,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				}
 				ret.add(new WordToResults(word, r));
 			}
-			if (fi.equals(lang) && ret.size()-i<=30) {
+			if (fi.equals(lang) && ret.size()-i<=30 && depth>0) {
 				List<Word> tokens = new ArrayList<Word>(ret.size()-i);
 				int j = i;
 				while(i<ret.size()) {
@@ -349,7 +351,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 								r.addGlobalTag("POS_MATCH", "TRUE");
 						}
 					}
-				if (deprel) {
+				if (depth>1) {
 					i = j;
 					SentenceData09 sd = new SentenceData09();
 					String[] forms = new String[tokens.size()+1];
@@ -412,7 +414,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	
 	@Override
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections) {
-		return analyze(str,lang,inflections,true);
+		return analyze(str,lang,inflections,2);
 	}
 	
 	public static void main(String[] args) {
