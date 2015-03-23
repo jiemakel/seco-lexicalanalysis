@@ -251,11 +251,14 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	}
 	
 	
-	
 	@Override
 	public String baseform(String string, Locale lang) {
+		return baseform(string,lang,1);
+	}
+	
+	public String baseform(String string, Locale lang, int depth) {
 		try {
-			List<WordToResults> crc = analyze(string, lang,Collections.EMPTY_LIST,0);
+			List<WordToResults> crc = analyze(string, lang,Collections.EMPTY_LIST,depth);
 			StringBuilder ret = new StringBuilder();
 			for (WordToResults cr : crc) {
 				ret.append(getBestLemma(cr, lang));
