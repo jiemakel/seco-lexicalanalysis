@@ -303,7 +303,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				List<Result> r = toResult(tc.analyze(word));
 				if (r.isEmpty()) r = toResult(tc.analyze(word.toLowerCase()));
 				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(word)));
-				if (!inflections.isEmpty()) {
+				if (!inflections.isEmpty() && supportedInflectionLocales.contains(lang)) {
 					Transducer tic = getTransducer(lang, "inflection", it);
 					for (Result res : r) for (WordPart wp : res.getParts()) {
 						List<String> inflectedC = new ArrayList<String>();

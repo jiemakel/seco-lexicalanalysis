@@ -36,7 +36,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 
 	private final Collection<Locale> supportedAnalyzeLocales = new ArrayList<Locale>();
 	private final Collection<Locale> supportedHyphenationLocales = new ArrayList<Locale>();
-	private final Collection<Locale> supportedInflectionLocales = new ArrayList<Locale>();
+	protected final Collection<Locale> supportedInflectionLocales = new ArrayList<Locale>();
 
 	public static class Result {
 
@@ -328,10 +328,10 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		Transducer tc = getTransducer(lang, "analysis", at);
 		int recognized = 0;
 		String[] labels = LexicalAnalysisUtil.split(str);
-		for (String label : labels)
+		outer: for (String label : labels)
 			for (Transducer.Result tr : tc.analyze(label))  if (!tr.getSymbols().isEmpty()) {
 				recognized++;
-				continue;
+				continue outer;
 			}
 		return ((double)recognized)/labels.length;
 	}
@@ -345,7 +345,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 				List<Result> r = toResult(tc.analyze(label));
 				if (r.isEmpty()) r = toResult(tc.analyze(label.toLowerCase()));
 				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(label)));
-				if (!inflections.isEmpty()) {
+				if (!inflections.isEmpty() && supportedInflectionLocales.contains(lang)) {
 					Transducer tic = getTransducer(lang, "inflection", it);
 					for (Result res : r) for (WordPart wp : res.getParts()) {
 						List<String> inflectedC = new ArrayList<String>();
@@ -411,6 +411,8 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		System.out.println(hfst.analyze("sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" })));
 		System.out.println(hfst.baseform("Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi")));
 		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
+		System.out.println(hfst.recognize("sanomalehteä luin Suomessa", new Locale("fi")));
+		System.out.println(hfst.recognize("Eorum una, pars, quam Gallos obtinere dictum est, initium capit a flumine Rhodano, continetur Garumna flumine, Oceano, finibus Belgarum, attingit etiam ab Sequanis et Helvetiis flumen Rhenum, vergit ad septentriones.", new Locale("la")));
 		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, new Locale("fi")));
 		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, new Locale("fi")));
 		//System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi")));
