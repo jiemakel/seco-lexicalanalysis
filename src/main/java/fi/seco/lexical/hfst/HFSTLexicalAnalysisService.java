@@ -329,7 +329,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		int recognized = 0;
 		String[] labels = LexicalAnalysisUtil.split(str);
 		outer: for (String label : labels)
-			for (Transducer.Result tr : tc.analyze(label))  if (!tr.getSymbols().isEmpty()) {
+			for (Transducer.Result tr : tc.analyze(label))  if (!tr.getSymbols().isEmpty() && !tr.getSymbols().contains("»") && !tr.getSymbols().contains("[POS=PUNCT]") && !tr.getSymbols().contains("PUNCT") && !tr.getSymbols().contains("+PUNCT")) {
 				recognized++;
 				continue outer;
 			}
@@ -412,6 +412,11 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		System.out.println(hfst.baseform("Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi")));
 		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("sanomalehteä luin Suomessa", new Locale("fi")));
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("la")));
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("de")));
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("myv")));
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("en")));
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("mrj")));
 		System.out.println(hfst.recognize("Eorum una, pars, quam Gallos obtinere dictum est, initium capit a flumine Rhodano, continetur Garumna flumine, Oceano, finibus Belgarum, attingit etiam ab Sequanis et Helvetiis flumen Rhenum, vergit ad septentriones.", new Locale("la")));
 		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, new Locale("fi")));
 		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, new Locale("fi")));
