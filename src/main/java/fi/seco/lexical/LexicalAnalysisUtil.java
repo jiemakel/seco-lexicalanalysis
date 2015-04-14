@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 
 public class LexicalAnalysisUtil {
 
-	private final static Pattern sp = Pattern.compile("[\\p{C}\\p{P}\\p{Z}\\p{S}]+");
+	private final static Pattern sp = Pattern.compile("\\p{P}*(^|\\p{Z}+|$)\\p{P}*");
 	private final static Pattern dp = Pattern.compile("([^\\p{C}\\p{P}\\p{Z}\\p{S}]+)");
 
 	private final static Pattern numbers = Pattern.compile("\\p{N}+");
