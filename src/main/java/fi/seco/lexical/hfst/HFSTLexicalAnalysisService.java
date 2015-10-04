@@ -355,7 +355,13 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(label)));
 				if (!inflections.isEmpty() && supportedInflectionLocales.contains(lang)) {
 					Transducer tic = getTransducer(lang, "inflection", it);
-					for (Result res : r)
+					Result bestResult = null;
+					float cw = Float.MAX_VALUE;
+					for (Result res : r) {
+						if (res.getWeight() < cw) {
+							bestResult = res;
+							cw = res.getWeight();
+						}
 						for (WordPart wp : res.getParts()) {
 							List<String> inflectedC = new ArrayList<String>();
 							List<String> inflectedFormC = new ArrayList<String>();
@@ -371,6 +377,8 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 								wp.getTags().put("INFLECTED_FORM", inflectedFormC);
 							}
 						}
+					}
+					bestResult.addGlobalTag("BEST_MATCH", "TRUE");
 				}
 				ret.add(new WordToResults(label, r));
 			}
