@@ -385,26 +385,29 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		return ret;
 	}
 
-	protected String getBestLemma(WordToResults cr, Locale lang) {
+	protected String getBestLemma(WordToResults cr, Locale lang, boolean partition) {
 		float cw = Float.MAX_VALUE;
 		StringBuilder cur = new StringBuilder();
 		for (Result r : cr.getAnalysis())
 			if (r.getWeight() < cw) {
 				cur.setLength(0);
-				for (WordPart wp : r.getParts())
+				for (WordPart wp : r.getParts()) {
 					cur.append(wp.getLemma());
+					if (partition) cur.append('#');
+				}
+				if (partition) cur.setLength(cur.length()-1);
 				cw = r.getWeight();
 			}
 		return cur.toString();
 	}
 
 	@Override
-	public String baseform(String string, Locale lang) {
+	public String baseform(String string, Locale lang, boolean partition) {
 		try {
 			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST);
 			StringBuilder ret = new StringBuilder();
 			for (WordToResults cr : crc) {
-				ret.append(getBestLemma(cr, lang));
+				ret.append(getBestLemma(cr, lang, partition));
 				ret.append(' ');
 			}
 			return ret.toString().trim();
@@ -426,7 +429,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
 		System.out.println(hfst.analyze("635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" })));
-		System.out.println(hfst.baseform("635. 635 Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi")));
+		System.out.println(hfst.baseform("635. 635 Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true));
 		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("la")));

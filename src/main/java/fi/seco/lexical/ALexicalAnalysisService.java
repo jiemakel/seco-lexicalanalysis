@@ -18,7 +18,7 @@ public class ALexicalAnalysisService implements ILexicalAnalysisService {
 	}
 
 	@Override
-	public String baseform(String string, Locale lang) {
+	public String baseform(String string, Locale lang, boolean partition) {
 		throw new UnsupportedOperationException();	}
 
 	@Override

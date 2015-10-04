@@ -226,16 +226,16 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	}
 
 	@Override
-	public String baseform(String string, Locale lang) {
-		return baseform(string, lang, 1);
+	public String baseform(String string, Locale lang, boolean partition) {
+		return baseform(string, lang, partition, 1);
 	}
 
-	public String baseform(String string, Locale lang, int depth) {
+	public String baseform(String string, Locale lang, boolean partition, int depth) {
 		try {
 			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST, depth);
 			StringBuilder ret = new StringBuilder();
 			for (WordToResults cr : crc) {
-				ret.append(getBestLemma(cr, lang));
+				ret.append(getBestLemma(cr, lang, partition));
 				ret.append(' ');
 			}
 			return ret.toString().trim();
@@ -245,22 +245,26 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	}
 
 	@Override
-	protected String getBestLemma(WordToResults cr, Locale lang) {
+	protected String getBestLemma(WordToResults cr, Locale lang, boolean partition) {
 		float cw = Float.MAX_VALUE;
 		StringBuilder cur = new StringBuilder();
 		for (Result r : cr.getAnalysis())
 			if (r.getWeight() < cw) {
 				cur.setLength(0);
-				for (WordPart wp : r.getParts())
+				for (WordPart wp : r.getParts()) {
 					cur.append(wp.getLemma());
+					if (partition) cur.append('#');
+				}
 				cw = r.getWeight();
 			}
 		cw = Float.MAX_VALUE;
 		for (Result r : cr.getAnalysis())
 			if (r.getGlobalTags().containsKey("POS_MATCH") && r.getWeight() < cw) {
 				cur.setLength(0);
-				for (WordPart wp : r.getParts())
+				for (WordPart wp : r.getParts()) {
 					cur.append(wp.getLemma());
+					if (partition) cur.append('#');
+				}
 				cw = r.getWeight();
 			}
 		return cur.toString();

@@ -28,11 +28,11 @@ public class CompoundLexicalAnalysisService implements ILexicalAnalysisService {
 	}
 
 	@Override
-	public String baseform(String string, Locale lang) {
-		if (bfs.containsKey(lang)) return bfs.get(lang).baseform(string, lang);
+	public String baseform(String string, Locale lang, boolean partition) {
+		if (bfs.containsKey(lang)) return bfs.get(lang).baseform(string, lang, partition);
 		if (lang != null && !"".equals(lang.getCountry())) {
 			lang = new Locale(lang.getLanguage());
-			if (bfs.containsKey(lang)) return bfs.get(lang).baseform(string, lang);
+			if (bfs.containsKey(lang)) return bfs.get(lang).baseform(string, lang, partition);
 		}
 		return string;
 	}

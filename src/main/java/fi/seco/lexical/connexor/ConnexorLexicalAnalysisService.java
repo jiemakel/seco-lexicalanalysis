@@ -86,7 +86,7 @@ public class ConnexorLexicalAnalysisService extends ALexicalAnalysisService {
 	private final static Pattern p = Pattern.compile("<lemma>(.*)</lemma>");
 
 	@Override
-	public String baseform(String str, Locale lang) {
+	public String baseform(String str, Locale lang, boolean partition) {
 		if (lang == null || str.length() == 0) return str;
 		/*MPTResponse res = analyzeMPT(str, lang);
 		StringBuilder sb = new StringBuilder();
@@ -101,7 +101,8 @@ public class ConnexorLexicalAnalysisService extends ALexicalAnalysisService {
 		if (analyzed == null) return str;
 		Matcher m = p.matcher(analyzed);
 		while (m.find()) {
-			sb.append(m.group(1).replaceAll("#", ""));
+			if (!partition) sb.append(m.group(1).replaceAll("#", ""));
+			else sb.append(m.group(1));
 			sb.append(' ');
 		}
 		return sb.toString().trim();
@@ -277,8 +278,8 @@ public class ConnexorLexicalAnalysisService extends ALexicalAnalysisService {
 	public static void main(String[] args) throws Exception {
 		final ConnexorLexicalAnalysisService fdg = new ConnexorLexicalAnalysisService();
 		System.out.println("---------------------------------------------------------------------------------------------------------------------------------------");
-		System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi")));
-		System.out.println(fdg.baseform("Joukahaisen mierolla tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
+		System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi"),false));
+		System.out.println(fdg.baseform("Joukahaisen mierolla tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi"),false));
 		System.out.println("---------------------------------------------------------------------------------------------------------------------------------------");
 		System.out.println(fdg.analyzeFDG("Joukahaisen mierolla tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
 		System.out.println("---------------------------------------------------------------------------------------------------------------------------------------");

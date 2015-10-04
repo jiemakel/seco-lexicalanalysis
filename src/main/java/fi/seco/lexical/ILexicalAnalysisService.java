@@ -9,7 +9,7 @@ public interface ILexicalAnalysisService {
 
 	public Collection<Locale> getSupportedSummarizeLocales();
 
-	public String baseform(String string, Locale lang);
+	public String baseform(String string, Locale lang, boolean partition);
 
 	public Collection<Locale> getSupportedBaseformLocales();
 
