@@ -384,6 +384,14 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			}
 		return ret;
 	}
+	
+	protected Result getBestResult(WordToResults cr) {
+		float cw = Float.MAX_VALUE;
+		Result ret = null;
+		for (Result r : cr.getAnalysis())
+			if (r.getWeight() < cw) ret=r;
+		return ret;
+	}
 
 	protected String getBestLemma(WordToResults cr, Locale lang, boolean partition) {
 		float cw = Float.MAX_VALUE;
@@ -391,14 +399,26 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		for (Result r : cr.getAnalysis())
 			if (r.getWeight() < cw) {
 				cur.setLength(0);
-				for (WordPart wp : r.getParts()) {
+				for (WordPart wp : r.getParts()) 
 					cur.append(wp.getLemma());
-					if (partition) cur.append('#');
-				}
-				if (partition) cur.setLength(cur.length()-1);
 				cw = r.getWeight();
 			}
-		return cur.toString();
+		String ret = cur.toString();
+		if (partition) {
+			Result br = getBestResult(analyze(ret, lang, Collections.EMPTY_LIST).get(0));
+			cur.setLength(0);
+			for (WordPart wp : br.getParts()) {
+				List<String> segments = wp.getTags().get("SEGMENT");
+				if (segments != null) for (String s : segments)
+					if (!"-0".equals(s))
+						cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
+					else cur.append(wp.getLemma());
+				cur.append('#');
+			}
+			cur.setLength(cur.length()-1);
+			ret=cur.toString();
+		}
+		return ret;
 	}
 
 	@Override
@@ -428,8 +448,9 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
-		System.out.println(hfst.analyze("635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" })));
-		System.out.println(hfst.baseform("635. 635 Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true));
+		System.out.println(hfst.baseform("ulkoasiainministeriövaa'at", new Locale("fi"),true));
+		System.out.println(hfst.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" })));
+		System.out.println(hfst.baseform("635. 635 Helsingissä ulkoasiainministeriöstä vastaukset sanomalehdet varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true));
 		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("la")));
