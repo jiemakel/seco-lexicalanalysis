@@ -408,7 +408,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
-		System.out.println(hfst.analyze("sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" })));
+		System.out.println(hfst.analyze("65 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" })));
 		System.out.println(hfst.baseform("Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi")));
 		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("sanomalehteä luin Suomessa", new Locale("fi")));
