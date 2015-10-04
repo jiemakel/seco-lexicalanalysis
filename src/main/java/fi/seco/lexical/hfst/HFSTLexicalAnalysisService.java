@@ -23,7 +23,6 @@ import fi.seco.hfst.TransducerHeader;
 import fi.seco.hfst.UnweightedTransducer;
 import fi.seco.hfst.WeightedTransducer;
 import fi.seco.lexical.ALexicalAnalysisService;
-import fi.seco.lexical.ILexicalAnalysisService;
 import fi.seco.lexical.LexicalAnalysisUtil;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 
@@ -207,6 +206,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			if (tr.getSymbols().isEmpty()) continue;
 			Result r = new Result(tr.getWeight());
 			final StringBuilder lemma = new StringBuilder();
+			String lemmaSegmentExceptionStore = null;
 			WordPart w = null;
 			if (tr.getSymbols().get(0).startsWith("[")) { //[BOUNDARY=LEXITEM][LEMMA='san'][POS=NOUN][KTN=5][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='oma'][POS=ADJECTIVE][KTN=1%0][CMP=POS][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='lehti'][POS=NOUN][KTN=7][KAV=F][NUM=SG][CASE=PAR][ALLO=A][BOUNDARY=LEXITEM][CASECHANGE=NONE]
 				boolean parsingSegment = false;
@@ -221,14 +221,16 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 							String[] tmp = s.split("=");
 							if ("[BOUNDARY".equals(tmp[0]) || "[WORD_ID".equals(tmp[0])) {
 								parsingSegment = false;
-								parsingTag = false;								
-								if (w == null) w = new WordPart();
+								parsingTag = false;
+								if (w == null)
+									w = new WordPart();
 								else if (w.getLemma() != null) {
 									r.addPart(w);
 									w = new WordPart();
 								}
 								lemma.setLength(0);
 							} else if ("[SEGMENT".equals(tmp[0])) {
+								if (lemma.length() != 0) lemmaSegmentExceptionStore = lemma.toString();
 								parsingSegment = true;
 								parsingTag = false;
 								lemma.setLength(0);
@@ -243,13 +245,18 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 						if (parsingSegment)
 							w.addTag("SEGMENT", lemma.toString());
 						else if (parsingTag) {
-							if (s.equals("]")) lemma.append('[');
+							if (s.equals("]"))
+								lemma.append('[');
 							else {
 								String[] tmp = lemma.toString().split("=");
 								w.addTag(tmp[0], tmp[1]);
 							}
 						} else w.setLemma(lemma.toString());
 						lemma.setLength(0);
+						if (lemmaSegmentExceptionStore != null) {
+							lemma.append(lemmaSegmentExceptionStore);
+							lemmaSegmentExceptionStore = null;
+						}
 						parsingSegment = false;
 						parsingTag = false;
 					} else lemma.append(s);
@@ -323,17 +330,18 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		}
 		return ret;
 	}
-	
+
 	public double recognize(String str, Locale lang) {
 		Transducer tc = getTransducer(lang, "analysis", at);
 		int recognized = 0;
 		String[] labels = LexicalAnalysisUtil.split(str);
 		outer: for (String label : labels)
-			for (Transducer.Result tr : tc.analyze(label))  if (!tr.getSymbols().isEmpty() && !tr.getSymbols().contains("»") && !tr.getSymbols().contains("[POS=PUNCT]") && !tr.getSymbols().contains("PUNCT") && !tr.getSymbols().contains("+PUNCT")) {
-				recognized++;
-				continue outer;
-			}
-		return ((double)recognized)/labels.length;
+			for (Transducer.Result tr : tc.analyze(label))
+				if (!tr.getSymbols().isEmpty() && !tr.getSymbols().contains("»") && !tr.getSymbols().contains("[POS=PUNCT]") && !tr.getSymbols().contains("PUNCT") && !tr.getSymbols().contains("+PUNCT")) {
+					recognized++;
+					continue outer;
+				}
+		return ((double) recognized) / labels.length;
 	}
 
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections) {
@@ -347,21 +355,22 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(label)));
 				if (!inflections.isEmpty() && supportedInflectionLocales.contains(lang)) {
 					Transducer tic = getTransducer(lang, "inflection", it);
-					for (Result res : r) for (WordPart wp : res.getParts()) {
-						List<String> inflectedC = new ArrayList<String>();
-						List<String> inflectedFormC = new ArrayList<String>();
-						for (String inflection : inflections) {
-							String inflected = firstToString(tic.analyze(wp.getLemma()+ " " + inflection));
-							if (!inflected.isEmpty()) {
-								inflectedC.add(inflected);
-								inflectedFormC.add(inflection);
+					for (Result res : r)
+						for (WordPart wp : res.getParts()) {
+							List<String> inflectedC = new ArrayList<String>();
+							List<String> inflectedFormC = new ArrayList<String>();
+							for (String inflection : inflections) {
+								String inflected = firstToString(tic.analyze(wp.getLemma() + " " + inflection));
+								if (!inflected.isEmpty()) {
+									inflectedC.add(inflected);
+									inflectedFormC.add(inflection);
+								}
+							}
+							if (!inflectedC.isEmpty()) {
+								wp.getTags().put("INFLECTED", inflectedC);
+								wp.getTags().put("INFLECTED_FORM", inflectedFormC);
 							}
 						}
-						if (!inflectedC.isEmpty()) {
-							wp.getTags().put("INFLECTED",inflectedC);
-							wp.getTags().put("INFLECTED_FORM",inflectedFormC);
-						}
-					}
 				}
 				ret.add(new WordToResults(label, r));
 			}
@@ -384,7 +393,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	@Override
 	public String baseform(String string, Locale lang) {
 		try {
-			List<WordToResults> crc = analyze(string, lang,Collections.EMPTY_LIST);
+			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST);
 			StringBuilder ret = new StringBuilder();
 			for (WordToResults cr : crc) {
 				ret.append(getBestLemma(cr, lang));
@@ -408,8 +417,8 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
-		System.out.println(hfst.analyze("65 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" })));
-		System.out.println(hfst.baseform("Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi")));
+		System.out.println(hfst.analyze("635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" })));
+		System.out.println(hfst.baseform("635. 635 Helsingissä vastaukset varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi")));
 		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("la")));
@@ -463,11 +472,11 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	@Override
 	public String inflect(String string, List<String> inflections, boolean baseform, Locale lang) {
 		StringBuilder ret = new StringBuilder();
-		for (WordToResults part : analyze(string, lang,inflections)) {
-			String inflected = getBestInflection(part, lang,baseform);
+		for (WordToResults part : analyze(string, lang, inflections)) {
+			String inflected = getBestInflection(part, lang, baseform);
 			if (!inflected.isEmpty())
 				ret.append(inflected);
-			else ret.append(part.getWord()); 
+			else ret.append(part.getWord());
 			ret.append(' ');
 		}
 		return ret.toString().trim();
@@ -481,24 +490,24 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			if (r.getWeight() < cw) {
 				cw = r.getWeight();
 				cur.setLength(0);
-				for (int i=0;i<r.getParts().size()-1;i++) {
+				for (int i = 0; i < r.getParts().size() - 1; i++) {
 					WordPart wp = r.getParts().get(i);
 					List<String> segments = wp.getTags().get("SEGMENT");
-					if (segments!=null) 
-						for (String s : segments) if (!"-0".equals(s))
-							cur.append(s.replace("»", "").replace("{WB}","").replace("{XB}","").replace("{DB}","").replace("{MB}","").replace("{STUB}","").replace("{hyph?}",""));
-					else cur.append(wp.getLemma());
+					if (segments != null) for (String s : segments)
+						if (!"-0".equals(s))
+							cur.append(s.replace("»", "").replace("{WB}", "").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
+						else cur.append(wp.getLemma());
 				}
-				WordPart wp = r.getParts().get(r.getParts().size()-1);
-				if (wp.getTags().get("INFLECTED")!=null) {
+				WordPart wp = r.getParts().get(r.getParts().size() - 1);
+				if (wp.getTags().get("INFLECTED") != null) {
 					cur.append(wp.getTags().get("INFLECTED").get(0));
-					foundInflection=true;
+					foundInflection = true;
 				} else cur.append(wp.getLemma());
 			}
 		if (!foundInflection) cur.setLength(0);
 		return cur.toString();
 	}
-	
+
 	@Override
 	public Collection<Locale> getSupportedInflectionLocales() {
 		return supportedInflectionLocales;
