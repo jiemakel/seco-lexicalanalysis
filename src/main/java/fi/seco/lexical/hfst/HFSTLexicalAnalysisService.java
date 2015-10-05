@@ -458,27 +458,6 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		return supportedAnalyzeLocales;
 	}
 
-	public static void main(String[] args) throws Exception {
-		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
-		System.out.println(hfst.baseform("ulkoasiainministeriövaa'at", new Locale("fi"),true));
-		System.out.println(hfst.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true));
-		System.out.println(hfst.baseform("635. 635 Helsingissä ulkoasiainministeriöstä vastaukset sanomalehdet varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true));
-		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
-		System.out.println(hfst.recognize("sanomalehteä luin Suomessa", new Locale("fi")));
-		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("la")));
-		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("de")));
-		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("myv")));
-		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("en")));
-		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("mrj")));
-		System.out.println(hfst.recognize("Eorum una, pars, quam Gallos obtinere dictum est, initium capit a flumine Rhodano, continetur Garumna flumine, Oceano, finibus Belgarum, attingit etiam ab Sequanis et Helvetiis flumen Rhenum, vergit ad septentriones.", new Locale("la")));
-		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, true, new Locale("fi")));
-		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, false, new Locale("fi")));
-		//System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi")));
-		//System.out.println(fdg.analyze("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
-		//System.out.println(fdg.baseform("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
-		//System.out.println(fdg.baseform("johdanto Hyvin toimiva sosiaalihuolto ja siihen liittyvä palvelujärjestelmä ovat keskeinen osa ihmisten hyvinvoinnin ja perusoikeuksien toteuttamista. Sosiaalihuollon järjestämisen ja yksilönsosiaalisten oikeuksien toteutumisen perusta on perustuslain 19 §:ssä. Se turvaa jokaiselleoikeuden välttämättömään toimeentuloon ja huolenpitoon", new Locale("fi")));
-	}
-
 	protected String firstToString(List<Transducer.Result> rl) {
 		StringBuilder sb = new StringBuilder();
 		for (Transducer.Result r : rl) {
@@ -559,4 +538,27 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	public Collection<Locale> getSupportedInflectionLocales() {
 		return supportedInflectionLocales;
 	}
+	
+	public static void main(String[] args) throws Exception {
+		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
+		System.out.println(hfst.baseform("ulkoasiainministeriövaa'at soitti fagottia", new Locale("fi"),true));
+		System.out.println(hfst.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true));
+		System.out.println(hfst.baseform("635. 635 Helsingissä ulkoasiainministeriöstä vastaukset sanomalehdet varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true));
+		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
+		System.out.println(hfst.recognize("sanomalehteä luin Suomessa", new Locale("fi")));
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("la")));
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("de")));
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("myv")));
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("en")));
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("mrj")));
+		System.out.println(hfst.recognize("Eorum una, pars, quam Gallos obtinere dictum est, initium capit a flumine Rhodano, continetur Garumna flumine, Oceano, finibus Belgarum, attingit etiam ab Sequanis et Helvetiis flumen Rhenum, vergit ad septentriones.", new Locale("la")));
+		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, true, new Locale("fi")));
+		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, false, new Locale("fi")));
+		//System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi")));
+		//System.out.println(fdg.analyze("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
+		//System.out.println(fdg.baseform("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
+		//System.out.println(fdg.baseform("johdanto Hyvin toimiva sosiaalihuolto ja siihen liittyvä palvelujärjestelmä ovat keskeinen osa ihmisten hyvinvoinnin ja perusoikeuksien toteuttamista. Sosiaalihuollon järjestämisen ja yksilönsosiaalisten oikeuksien toteutumisen perusta on perustuslain 19 §:ssä. Se turvaa jokaiselleoikeuden välttämättömään toimeentuloon ja huolenpitoon", new Locale("fi")));
+	}
+
+
 }
