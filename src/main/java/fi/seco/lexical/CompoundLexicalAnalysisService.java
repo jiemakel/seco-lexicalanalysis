@@ -72,12 +72,12 @@ public class CompoundLexicalAnalysisService implements ILexicalAnalysisService {
 		return hfs.keySet();
 	}
 
-	@Override
-	public String inflect(String string, List<String> inflections, boolean baseform, Locale lang) {
-		if (ifs.containsKey(lang)) return ifs.get(lang).inflect(string, inflections, baseform, lang);
+	@Override 
+	public String inflect(String string, List<String> inflections, boolean segments, boolean baseform, Locale lang) {
+		if (ifs.containsKey(lang)) return ifs.get(lang).inflect(string, inflections, segments, baseform, lang);
 		if (lang != null && !"".equals(lang.getCountry())) {
 			lang = new Locale(lang.getLanguage());
-			if (ifs.containsKey(lang)) return ifs.get(lang).inflect(string, inflections, baseform, lang);
+			if (ifs.containsKey(lang)) return ifs.get(lang).inflect(string, inflections, segments, baseform, lang);
 		}
 		return string;
 	}

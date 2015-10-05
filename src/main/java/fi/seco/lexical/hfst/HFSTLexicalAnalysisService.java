@@ -168,6 +168,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 				if (h.isWeighted())
 					t = new WeightedTransducer(charstream, h, a);
 				else t = new UnweightedTransducer(charstream, h, a);
+				t.analyze(""); // make sure transducer is synchronously initialized
 			} catch (IOException e) {
 				log.error("Couldn't initialize transducer " + file, e);
 				return null;
@@ -344,24 +345,45 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		return ((double) recognized) / labels.length;
 	}
 
-	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections) {
+	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean segments) {
 		Transducer tc = getTransducer(lang, "analysis", at);
 		String[] labels = LexicalAnalysisUtil.split(str);
 		List<WordToResults> ret = new ArrayList<WordToResults>(labels.length);
+		StringBuilder cur = new StringBuilder();
 		for (String label : labels)
 			if (!"".equals(label)) {
 				List<Result> r = toResult(tc.analyze(label));
 				if (r.isEmpty()) r = toResult(tc.analyze(label.toLowerCase()));
 				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(label)));
+				Result bestResult = null;
+				float cw = Float.MAX_VALUE;
+				for (Result res : r) {
+					if (res.getWeight() < cw) {
+						bestResult = res;
+						cw = res.getWeight();
+					}
+				}
+				bestResult.addGlobalTag("BEST_MATCH", "TRUE");
+				if (segments)
+					for (Result res : r)
+						for (WordPart wp : res.getParts()) {
+							List<WordToResults> analysis = analyze(wp.getLemma(), lang, Collections.EMPTY_LIST, false);
+							if (analysis.size()==0)
+								continue;
+							Result br = getBestResult(analysis.get(0));
+							List<String> bwpSegments = new ArrayList<String>();
+							for (WordPart bwp : br.getParts()) {
+								if (bwp.getTags().containsKey("SEGMENT"))
+									bwpSegments.addAll(bwp.getTags().get("SEGMENT"));
+								else bwpSegments.add(bwp.getLemma());
+								bwpSegments.add("{WB}");
+							}
+							bwpSegments.remove(bwpSegments.size()-1);
+							wp.getTags().put("BASEFORM_SEGMENT",bwpSegments);
+						}
 				if (!inflections.isEmpty() && supportedInflectionLocales.contains(lang)) {
 					Transducer tic = getTransducer(lang, "inflection", it);
-					Result bestResult = null;
-					float cw = Float.MAX_VALUE;
-					for (Result res : r) {
-						if (res.getWeight() < cw) {
-							bestResult = res;
-							cw = res.getWeight();
-						}
+					for (Result res : r)
 						for (WordPart wp : res.getParts()) {
 							List<String> inflectedC = new ArrayList<String>();
 							List<String> inflectedFormC = new ArrayList<String>();
@@ -377,8 +399,6 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 								wp.getTags().put("INFLECTED_FORM", inflectedFormC);
 							}
 						}
-					}
-					bestResult.addGlobalTag("BEST_MATCH", "TRUE");
 				}
 				ret.add(new WordToResults(label, r));
 			}
@@ -393,41 +413,33 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		return ret;
 	}
 
-	protected String getBestLemma(WordToResults cr, Locale lang, boolean partition) {
+	protected String getBestLemma(WordToResults cr, Locale lang, boolean segments) {
 		float cw = Float.MAX_VALUE;
 		StringBuilder cur = new StringBuilder();
 		for (Result r : cr.getAnalysis())
 			if (r.getWeight() < cw) {
 				cur.setLength(0);
-				for (WordPart wp : r.getParts()) 
-					cur.append(wp.getLemma());
+				for (WordPart wp : r.getParts())
+					if (segments) {
+						if (wp.getTags().containsKey("BASEFORM_SEGMENT")) for (String s : wp.getTags().get("BASEFORM_SEGMENT")) 
+							if (!"-0".equals(s)) 
+								cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
+						cur.append('#');
+					}
+					else cur.append(wp.getLemma());
+				if (segments) cur.setLength(cur.length()-1);
 				cw = r.getWeight();
 			}
-		String ret = cur.toString();
-		if (partition) {
-			Result br = getBestResult(analyze(ret, lang, Collections.EMPTY_LIST).get(0));
-			cur.setLength(0);
-			for (WordPart wp : br.getParts()) {
-				List<String> segments = wp.getTags().get("SEGMENT");
-				if (segments != null) for (String s : segments)
-					if (!"-0".equals(s))
-						cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
-					else cur.append(wp.getLemma());
-				cur.append('#');
-			}
-			cur.setLength(cur.length()-1);
-			ret=cur.toString();
-		}
-		return ret;
+		return cur.toString();
 	}
 
 	@Override
-	public String baseform(String string, Locale lang, boolean partition) {
+	public String baseform(String string, Locale lang, boolean segments) {
 		try {
-			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST);
+			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST, segments);
 			StringBuilder ret = new StringBuilder();
 			for (WordToResults cr : crc) {
-				ret.append(getBestLemma(cr, lang, partition));
+				ret.append(getBestLemma(cr, lang, segments));
 				ret.append(' ');
 			}
 			return ret.toString().trim();
@@ -449,7 +461,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
 		System.out.println(hfst.baseform("ulkoasiainministeriövaa'at", new Locale("fi"),true));
-		System.out.println(hfst.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" })));
+		System.out.println(hfst.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true));
 		System.out.println(hfst.baseform("635. 635 Helsingissä ulkoasiainministeriöstä vastaukset sanomalehdet varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true));
 		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("sanomalehteä luin Suomessa", new Locale("fi")));
@@ -459,8 +471,8 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("en")));
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("mrj")));
 		System.out.println(hfst.recognize("Eorum una, pars, quam Gallos obtinere dictum est, initium capit a flumine Rhodano, continetur Garumna flumine, Oceano, finibus Belgarum, attingit etiam ab Sequanis et Helvetiis flumen Rhenum, vergit ad septentriones.", new Locale("la")));
-		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, new Locale("fi")));
-		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, new Locale("fi")));
+		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, true, new Locale("fi")));
+		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, false, new Locale("fi")));
 		//System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi")));
 		//System.out.println(fdg.analyze("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
 		//System.out.println(fdg.baseform("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
@@ -502,10 +514,10 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	}
 
 	@Override
-	public String inflect(String string, List<String> inflections, boolean baseform, Locale lang) {
+	public String inflect(String string, List<String> inflections, boolean segments, boolean baseform, Locale lang) {
 		StringBuilder ret = new StringBuilder();
-		for (WordToResults part : analyze(string, lang, inflections)) {
-			String inflected = getBestInflection(part, lang, baseform);
+		for (WordToResults part : analyze(string, lang, inflections, false)) {
+			String inflected = getBestInflection(part, lang, segments, baseform);
 			if (!inflected.isEmpty())
 				ret.append(inflected);
 			else ret.append(part.getWord());
@@ -514,7 +526,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		return ret.toString().trim();
 	}
 
-	protected String getBestInflection(WordToResults cr, Locale lang, boolean baseform) {
+	protected String getBestInflection(WordToResults cr, Locale lang, boolean segments, boolean baseform) {
 		float cw = Float.MAX_VALUE;
 		StringBuilder cur = new StringBuilder();
 		boolean foundInflection = baseform;
@@ -524,11 +536,14 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 				cur.setLength(0);
 				for (int i = 0; i < r.getParts().size() - 1; i++) {
 					WordPart wp = r.getParts().get(i);
-					List<String> segments = wp.getTags().get("SEGMENT");
-					if (segments != null) for (String s : segments)
-						if (!"-0".equals(s))
-							cur.append(s.replace("»", "").replace("{WB}", "").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
-						else cur.append(wp.getLemma());
+					List<String> isegments = wp.getTags().get("SEGMENT");
+					if (isegments != null) for (String s : isegments)
+						if (!"-0".equals(s)) {
+							if (segments)
+								cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
+							else 
+								cur.append(s.replace("»", "").replace("{WB}", "").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
+						} else cur.append(wp.getLemma());
 				}
 				WordPart wp = r.getParts().get(r.getParts().size() - 1);
 				if (wp.getTags().get("INFLECTED") != null) {
