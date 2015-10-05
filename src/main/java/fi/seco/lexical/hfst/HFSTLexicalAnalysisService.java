@@ -512,11 +512,13 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 					List<String> isegments = wp.getTags().get("SEGMENT");
 					if (isegments != null) for (String s : isegments)
 						if (!"-0".equals(s)) {
-							if (segments)
+							if (segments) {
 								cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
-							else 
+								cur.append('#');
+							} else 
 								cur.append(s.replace("»", "").replace("{WB}", "").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
 						} else cur.append(wp.getLemma());
+					if (segments) cur.setLength(cur.length()-1);
 				}
 				WordPart wp = r.getParts().get(r.getParts().size() - 1);
 				if (wp.getTags().get("INFLECTED") != null) {
