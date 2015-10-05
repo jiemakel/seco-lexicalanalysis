@@ -24,6 +24,8 @@ import org.slf4j.LoggerFactory;
 
 import fi.seco.hfst.Transducer;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService;
+import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result;
+import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.WordToResults;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 import is2.data.Cluster;
 import is2.data.Long2Int;
@@ -251,23 +253,45 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		for (Result r : cr.getAnalysis())
 			if (r.getWeight() < cw) {
 				cur.setLength(0);
-				for (WordPart wp : r.getParts()) {
+				for (WordPart wp : r.getParts())
 					cur.append(wp.getLemma());
-					if (partition) cur.append('#');
-				}
 				cw = r.getWeight();
 			}
 		cw = Float.MAX_VALUE;
 		for (Result r : cr.getAnalysis())
 			if (r.getGlobalTags().containsKey("POS_MATCH") && r.getWeight() < cw) {
 				cur.setLength(0);
-				for (WordPart wp : r.getParts()) {
+				for (WordPart wp : r.getParts())
 					cur.append(wp.getLemma());
-					if (partition) cur.append('#');
-				}
 				cw = r.getWeight();
 			}
-		return cur.toString();
+		String ret = cur.toString();
+		if (partition) {
+			Result br = getBestResult(analyze(ret, lang, Collections.EMPTY_LIST).get(0));
+			cur.setLength(0);
+			for (WordPart wp : br.getParts()) {
+				List<String> segments = wp.getTags().get("SEGMENT");
+				if (segments != null) for (String s : segments)
+					if (!"-0".equals(s))
+						cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
+					else cur.append(wp.getLemma());
+				cur.append('#');
+			}
+			cur.setLength(cur.length()-1);
+			ret=cur.toString();
+		}		
+		return ret;
+	}
+	
+	protected Result getBestResult(WordToResults cr) {
+		float cw = Float.MAX_VALUE;
+		Result ret = null;
+		for (Result r : cr.getAnalysis())
+			if (r.getWeight() < cw) ret=r;
+		for (Result r : cr.getAnalysis())
+			if (r.getGlobalTags().containsKey("POS_MATCH") && r.getWeight() < cw) 
+				ret=r;
+		return ret;
 	}
 
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, int depth) {
