@@ -207,7 +207,6 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			if (tr.getSymbols().isEmpty()) continue;
 			Result r = new Result(tr.getWeight());
 			final StringBuilder lemma = new StringBuilder();
-			String lemmaSegmentExceptionStore = null;
 			WordPart w = null;
 			if (tr.getSymbols().get(0).startsWith("[")) { //[BOUNDARY=LEXITEM][LEMMA='san'][POS=NOUN][KTN=5][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='oma'][POS=ADJECTIVE][KTN=1%0][CMP=POS][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='lehti'][POS=NOUN][KTN=7][KAV=F][NUM=SG][CASE=PAR][ALLO=A][BOUNDARY=LEXITEM][CASECHANGE=NONE]
 				boolean parsingSegment = false;
@@ -231,7 +230,6 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 								}
 								lemma.setLength(0);
 							} else if ("[SEGMENT".equals(tmp[0])) {
-								if (lemma.length() != 0) lemmaSegmentExceptionStore = lemma.toString();
 								parsingSegment = true;
 								parsingTag = false;
 								lemma.setLength(0);
@@ -254,10 +252,6 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 							}
 						} else w.setLemma(lemma.toString());
 						lemma.setLength(0);
-						if (lemmaSegmentExceptionStore != null) {
-							lemma.append(lemmaSegmentExceptionStore);
-							lemmaSegmentExceptionStore = null;
-						}
 						parsingSegment = false;
 						parsingTag = false;
 					} else lemma.append(s);
@@ -541,6 +535,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
+		System.out.println(hfst.analyze("635",new Locale("fi"),Collections.EMPTY_LIST,true));
 		System.out.println(hfst.baseform("ulkoasiainministeriövaa'at soitti fagottia", new Locale("fi"),true));
 		System.out.println(hfst.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true));
 		System.out.println(hfst.baseform("635. 635 Helsingissä ulkoasiainministeriöstä vastaukset sanomalehdet varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true));

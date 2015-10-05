@@ -254,9 +254,10 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 			if (r.getWeight() < cw) {
 				cur.setLength(0);
 				for (WordPart wp : r.getParts())
-					if (segments && wp.getTags().containsKey("BASEFORM_SEGMENT")) for (String s : wp.getTags().get("BASEFORM_SEGMENT")) { 
-						if (!"-0".equals(s)) 
-							cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
+					if (segments) {
+						if (wp.getTags().containsKey("BASEFORM_SEGMENT")) for (String s : wp.getTags().get("BASEFORM_SEGMENT")) 
+							if (!"-0".equals(s)) 
+								cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
 						cur.append('#');
 					}
 					else cur.append(wp.getLemma());
@@ -268,9 +269,10 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 			if (r.getGlobalTags().containsKey("POS_MATCH") && r.getWeight() < cw) {
 				cur.setLength(0);
 				for (WordPart wp : r.getParts())
-					if (segments && wp.getTags().containsKey("BASEFORM_SEGMENT")) for (String s : wp.getTags().get("BASEFORM_SEGMENT")) { 
-						if (!"-0".equals(s)) 
-							cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
+					if (segments) {
+						if (wp.getTags().containsKey("BASEFORM_SEGMENT")) for (String s : wp.getTags().get("BASEFORM_SEGMENT")) 
+							if (!"-0".equals(s)) 
+								cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
 						cur.append('#');
 					}
 					else cur.append(wp.getLemma());
@@ -323,11 +325,15 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				if (baseformSegments)
 					for (Result res : r)
 						for (WordPart wp : res.getParts()) {
+							System.out.println(wp);
 							List<WordToResults> analysis = analyze(wp.getLemma(), lang, Collections.EMPTY_LIST, false);
 							if (analysis.size()==0)
 								continue;
 							Result br = getBestResult(analysis.get(0));
 							List<String> bwpSegments = new ArrayList<String>();
+							if (br.getParts().size()==0) {
+								System.out.println("zero: "+wp.getLemma());
+							}
 							for (WordPart bwp : br.getParts()) {
 								if (bwp.getTags().containsKey("SEGMENT"))
 									bwpSegments.addAll(bwp.getTags().get("SEGMENT"));
