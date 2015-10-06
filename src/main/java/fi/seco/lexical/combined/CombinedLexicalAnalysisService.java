@@ -325,15 +325,11 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				if (baseformSegments)
 					for (Result res : r)
 						for (WordPart wp : res.getParts()) {
-							System.out.println(wp);
 							List<WordToResults> analysis = analyze(wp.getLemma(), lang, Collections.EMPTY_LIST, false);
 							if (analysis.size()==0)
 								continue;
 							Result br = getBestResult(analysis.get(0));
 							List<String> bwpSegments = new ArrayList<String>();
-							if (br.getParts().size()==0) {
-								System.out.println("zero: "+wp.getLemma());
-							}
 							for (WordPart bwp : br.getParts()) {
 								if (bwp.getTags().containsKey("SEGMENT"))
 									bwpSegments.addAll(bwp.getTags().get("SEGMENT"));
