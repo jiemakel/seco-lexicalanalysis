@@ -237,7 +237,9 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 								parsingSegment = false;
 								parsingTag = false;
 								if (w == null) w = new WordPart();
-								w.addTag(tmp[0].substring(1), tmp[1].substring(0, tmp[1].length() - 1));
+								tmp=s.split("[=\\[\\]]");
+								for (int i=0;i<tmp.length;i+=3)
+									w.addTag(tmp[i+1], tmp[i+2]);									
 							}
 						}
 					} else if (s.charAt(s.length() - 1) == ']') {
