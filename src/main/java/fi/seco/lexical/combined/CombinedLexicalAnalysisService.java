@@ -261,7 +261,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 						cur.append('#');
 					}
 					else cur.append(wp.getLemma());
-				if (segments) cur.setLength(cur.length()-1);
+				if (segments && cur.length()>0) cur.setLength(cur.length()-1);
 				cw = r.getWeight();
 			}
 		cw = Float.MAX_VALUE;
@@ -276,7 +276,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 						cur.append('#');
 					}
 					else cur.append(wp.getLemma());
-				if (segments) cur.setLength(cur.length()-1);
+				if (segments && cur.length()>0) cur.setLength(cur.length()-1);
 				cw = r.getWeight();
 			}
 		return cur.toString();

@@ -423,7 +423,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 						cur.append('#');
 					}
 					else cur.append(wp.getLemma());
-				if (segments) cur.setLength(cur.length()-1);
+				if (segments && cur.length()>0) cur.setLength(cur.length()-1);
 				cw = r.getWeight();
 			}
 		return cur.toString();
@@ -520,7 +520,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 							} else 
 								cur.append(s.replace("»", "").replace("{WB}", "").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
 						} else cur.append(wp.getLemma());
-					if (segments) cur.setLength(cur.length()-1);
+					if (segments && cur.length()>0) cur.setLength(cur.length()-1);
 				}
 				WordPart wp = r.getParts().get(r.getParts().size() - 1);
 				if (wp.getTags().get("INFLECTED") != null) {
