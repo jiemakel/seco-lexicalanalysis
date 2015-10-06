@@ -385,7 +385,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				for (int k = 0; k < tags.size(); k++)
 					for (Result r : ret.get(i++).getAnalysis())
 						if (!r.getParts().isEmpty()) {
-							List<String> aPOS = r.getParts().get(r.getParts().size() - 1).getTags().get("POS");
+							List<String> aPOS = r.getParts().get(r.getParts().size() - 1).getTags().get("UPOS");
 							if (aPOS != null) {
 								List<String> ctags = tags.get(k);
 								Set<String> gPOS = rmap(ctags.get(0));
@@ -475,6 +475,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
+		System.out.println(las.analyze("kiipesin puuhun", new Locale("fi"),Collections.EMPTY_LIST,false,2));
 		System.out.println(las.baseform("ulkoasiainministeriövaa'at soitti fagottia", new Locale("fi"),true));
 		System.out.println(las.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true));
 		System.out.println(las.baseform("635. 635 Helsingissä ulkoasiainministeriöstä vastaukset sanomalehdet varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true));
