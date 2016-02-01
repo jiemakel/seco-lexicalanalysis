@@ -25,15 +25,18 @@ import fi.seco.hfst.WeightedTransducer;
 import fi.seco.lexical.ALexicalAnalysisService;
 import fi.seco.lexical.LexicalAnalysisUtil;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
+import marmot.util.StringUtils;
 
 public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	private static final Logger log = LoggerFactory.getLogger(HFSTLexicalAnalysisService.class);
 
-	protected final Map<Locale, Transducer> at = new HashMap<Locale, Transducer>();
-	private final Map<Locale, Transducer> ht = new HashMap<Locale, Transducer>();
-	protected final Map<Locale, Transducer> it = new HashMap<Locale, Transducer>();
+	protected final Map<Locale, Transducer> analysisTransducers = new HashMap<Locale, Transducer>();
+	private final Map<Locale, Transducer> hyphenationTransducers = new HashMap<Locale, Transducer>();
+	protected final Map<Locale, Transducer> inflectionTransducers = new HashMap<Locale, Transducer>();
+	protected final Map<Locale, Transducer> guessTransducers = new HashMap<Locale, Transducer>();
 
 	private final Collection<Locale> supportedAnalyzeLocales = new ArrayList<Locale>();
+	private final Collection<Locale> supportedGuessLocales = new ArrayList<Locale>();
 	private final Collection<Locale> supportedHyphenationLocales = new ArrayList<Locale>();
 	protected final Collection<Locale> supportedInflectionLocales = new ArrayList<Locale>();
 
@@ -147,6 +150,15 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		} catch (IOException e) {
 			log.error("Couldn't read locale information. Claiming to support no hyphenation languages");
 		}
+		try {
+			BufferedReader r = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream("guess-locales")));
+			String line;
+			while ((line = r.readLine()) != null)
+				supportedGuessLocales.add(new Locale(line));
+			r.close();
+		} catch (IOException e) {
+			log.error("Couldn't read locale information. Claiming to support no guessing languages");
+		}
 	}
 
 	protected Transducer getTransducer(Locale l, String type, Map<Locale, Transducer> s) {
@@ -200,136 +212,140 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			return word + ": " + analysis;
 		}
 	}
+	
+	protected static Result toResult(Transducer.Result tr) {
+		Result r = new Result(tr.getWeight());
+		final StringBuilder lemma = new StringBuilder();
+		WordPart w = null;
+		if (tr.getSymbols().get(0).startsWith("[")) { //[BOUNDARY=LEXITEM][LEMMA='san'][POS=NOUN][KTN=5][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='oma'][POS=ADJECTIVE][KTN=1%0][CMP=POS][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='lehti'][POS=NOUN][KTN=7][KAV=F][NUM=SG][CASE=PAR][ALLO=A][BOUNDARY=LEXITEM][CASECHANGE=NONE]
+			boolean parsingSegment = false;
+			boolean parsingTag = false;
+			for (String s : tr.getSymbols()) {
+				if (s.length() == 0) continue;
+				if (s.charAt(0) == '[') {
+					if (s.length() == 1) {
+						parsingSegment = false;
+						parsingTag = true;
+					} else {
+						String[] tmp = s.split("=");
+						if ("[BOUNDARY".equals(tmp[0]) || "[WORD_ID".equals(tmp[0])) {
+							parsingSegment = false;
+							parsingTag = false;
+							if (w == null)
+								w = new WordPart();
+							else if (w.getLemma() != null) {
+								r.addPart(w);
+								w = new WordPart();
+							}
+							lemma.setLength(0);
+						} else if ("[SEGMENT".equals(tmp[0])) {
+							parsingSegment = true;
+							parsingTag = false;
+							lemma.setLength(0);
+						} else if (s.charAt(s.length() - 1) == ']') {
+							parsingSegment = false;
+							parsingTag = false;
+							if (w == null) w = new WordPart();
+							tmp=s.split("[=\\[\\]]");
+							for (int i=0;i<tmp.length;i+=3)
+								w.addTag(tmp[i+1], tmp[i+2]);									
+						}
+					}
+				} else if (s.charAt(s.length() - 1) == ']') {
+					if (parsingSegment)
+						w.addTag("SEGMENT", lemma.toString());
+					else if (parsingTag) {
+						if (s.equals("]"))
+							lemma.append('[');
+						else {
+							String[] tmp = lemma.toString().split("=");
+							w.addTag(tmp[0], tmp[1]);
+						}
+					} else w.setLemma(lemma.toString());
+					lemma.setLength(0);
+					parsingSegment = false;
+					parsingTag = false;
+				} else lemma.append(s);
+			}
+			if (!w.getTags().isEmpty()) if (w.getLemma() != null)
+				r.addPart(w);
+			else r.setGlobalTags(w.getTags());
+		} else { //sanomat#lehti N Par Sg 	write[V]+V+PROG 	writ[N]+ING[N/N]+N söka<verb><infinitiv><aktiv>
+			w = new WordPart();
+			boolean previousWasTag = false;
+			for (String s : tr.getSymbols())
+				if (s.length() == 0 || s.charAt(0) == '#' || s.charAt(0) == ':')
+					previousWasTag = true;
+				else if (s.charAt(0) == ' ') {
+					previousWasTag = true;
+					if (s.length() > 1) if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
+						r.addGlobalTag(s.substring(1), s.substring(1));
+					else w.addTag(s.substring(1), s.substring(1));
+				} else if (s.charAt(0) == '+') {
+					previousWasTag = true;
+					if (s.length() > 1) if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
+						r.addGlobalTag(s.substring(1), s.substring(1));
+					else w.addTag(s.substring(1), s.substring(1));
+				} else if (s.charAt(0) == '<' && s.charAt(s.length() - 1) == '>') {
+					previousWasTag = true;
+					if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
+						r.addGlobalTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
+					else w.addTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
+				} else if (s.charAt(0) == '<' || s.charAt(0) == '>') {
+					previousWasTag = true;
+					if (s.length() > 1) if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
+						r.addGlobalTag(s.substring(1), s.substring(1));
+					else w.addTag(s.substring(1), s.substring(1));
+				} else if (s.charAt(0) == '[' && s.charAt(s.length() - 1) == ']') {
+					previousWasTag = true;
+					if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
+						r.addGlobalTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
+					else w.addTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
+				} else {
+					if (previousWasTag) {
+						if (lemma.length() > 0) {
+							w.setLemma(lemma.toString());
+							r.addPart(w);
+						}
+						w = new WordPart();
+						lemma.setLength(0);
+						previousWasTag = false;
+					}
+					lemma.append(s);
+				}
+			if (lemma.length() > 0) {
+				w.setLemma(lemma.toString());
+				r.addPart(w);
+			}
+			boolean hasTags = !r.getGlobalTags().isEmpty();
+			if (!hasTags) for (WordPart wp : r.getParts())
+				if (!wp.getTags().isEmpty()) {
+					hasTags = true;
+					break;
+				}
+			if (!hasTags && !r.getParts().isEmpty()) {
+				Result r2 = new Result();
+				WordPart fwp = r.getParts().get(0);
+				for (int j = 1; j < r.getParts().size(); j++)
+					fwp.addTag(r.getParts().get(j).getLemma(), r.getParts().get(j).getLemma());
+				r2.addPart(fwp);
+				r = r2;
+			}
+		}
+		return r;
+	}
 
 	protected static List<Result> toResult(List<Transducer.Result> analysis) {
 		List<Result> ret = new ArrayList<Result>(analysis.size());
 		for (Transducer.Result tr : analysis) {
 			if (tr.getSymbols().isEmpty()) continue;
-			Result r = new Result(tr.getWeight());
-			final StringBuilder lemma = new StringBuilder();
-			WordPart w = null;
-			if (tr.getSymbols().get(0).startsWith("[")) { //[BOUNDARY=LEXITEM][LEMMA='san'][POS=NOUN][KTN=5][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='oma'][POS=ADJECTIVE][KTN=1%0][CMP=POS][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='lehti'][POS=NOUN][KTN=7][KAV=F][NUM=SG][CASE=PAR][ALLO=A][BOUNDARY=LEXITEM][CASECHANGE=NONE]
-				boolean parsingSegment = false;
-				boolean parsingTag = false;
-				for (String s : tr.getSymbols()) {
-					if (s.length() == 0) continue;
-					if (s.charAt(0) == '[') {
-						if (s.length() == 1) {
-							parsingSegment = false;
-							parsingTag = true;
-						} else {
-							String[] tmp = s.split("=");
-							if ("[BOUNDARY".equals(tmp[0]) || "[WORD_ID".equals(tmp[0])) {
-								parsingSegment = false;
-								parsingTag = false;
-								if (w == null)
-									w = new WordPart();
-								else if (w.getLemma() != null) {
-									r.addPart(w);
-									w = new WordPart();
-								}
-								lemma.setLength(0);
-							} else if ("[SEGMENT".equals(tmp[0])) {
-								parsingSegment = true;
-								parsingTag = false;
-								lemma.setLength(0);
-							} else if (s.charAt(s.length() - 1) == ']') {
-								parsingSegment = false;
-								parsingTag = false;
-								if (w == null) w = new WordPart();
-								tmp=s.split("[=\\[\\]]");
-								for (int i=0;i<tmp.length;i+=3)
-									w.addTag(tmp[i+1], tmp[i+2]);									
-							}
-						}
-					} else if (s.charAt(s.length() - 1) == ']') {
-						if (parsingSegment)
-							w.addTag("SEGMENT", lemma.toString());
-						else if (parsingTag) {
-							if (s.equals("]"))
-								lemma.append('[');
-							else {
-								String[] tmp = lemma.toString().split("=");
-								w.addTag(tmp[0], tmp[1]);
-							}
-						} else w.setLemma(lemma.toString());
-						lemma.setLength(0);
-						parsingSegment = false;
-						parsingTag = false;
-					} else lemma.append(s);
-				}
-				if (!w.getTags().isEmpty()) if (w.getLemma() != null)
-					r.addPart(w);
-				else r.setGlobalTags(w.getTags());
-			} else { //sanomat#lehti N Par Sg 	write[V]+V+PROG 	writ[N]+ING[N/N]+N söka<verb><infinitiv><aktiv>
-				w = new WordPart();
-				boolean previousWasTag = false;
-				for (String s : tr.getSymbols())
-					if (s.length() == 0 || s.charAt(0) == '#' || s.charAt(0) == ':')
-						previousWasTag = true;
-					else if (s.charAt(0) == ' ') {
-						previousWasTag = true;
-						if (s.length() > 1) if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
-							r.addGlobalTag(s.substring(1), s.substring(1));
-						else w.addTag(s.substring(1), s.substring(1));
-					} else if (s.charAt(0) == '+') {
-						previousWasTag = true;
-						if (s.length() > 1) if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
-							r.addGlobalTag(s.substring(1), s.substring(1));
-						else w.addTag(s.substring(1), s.substring(1));
-					} else if (s.charAt(0) == '<' && s.charAt(s.length() - 1) == '>') {
-						previousWasTag = true;
-						if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
-							r.addGlobalTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
-						else w.addTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
-					} else if (s.charAt(0) == '<' || s.charAt(0) == '>') {
-						previousWasTag = true;
-						if (s.length() > 1) if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
-							r.addGlobalTag(s.substring(1), s.substring(1));
-						else w.addTag(s.substring(1), s.substring(1));
-					} else if (s.charAt(0) == '[' && s.charAt(s.length() - 1) == ']') {
-						previousWasTag = true;
-						if (!r.getParts().isEmpty() && r.getParts().get(0).getTags().isEmpty())
-							r.addGlobalTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
-						else w.addTag(s.substring(1, s.length() - 1), s.substring(1, s.length() - 1));
-					} else {
-						if (previousWasTag) {
-							if (lemma.length() > 0) {
-								w.setLemma(lemma.toString());
-								r.addPart(w);
-							}
-							w = new WordPart();
-							lemma.setLength(0);
-							previousWasTag = false;
-						}
-						lemma.append(s);
-					}
-				if (lemma.length() > 0) {
-					w.setLemma(lemma.toString());
-					r.addPart(w);
-				}
-				boolean hasTags = !r.getGlobalTags().isEmpty();
-				if (!hasTags) for (WordPart wp : r.getParts())
-					if (!wp.getTags().isEmpty()) {
-						hasTags = true;
-						break;
-					}
-				if (!hasTags && !r.getParts().isEmpty()) {
-					Result r2 = new Result();
-					WordPart fwp = r.getParts().get(0);
-					for (int j = 1; j < r.getParts().size(); j++)
-						fwp.addTag(r.getParts().get(j).getLemma(), r.getParts().get(j).getLemma());
-					r2.addPart(fwp);
-					r = r2;
-				}
-			}
-			ret.add(r);
+			ret.add(toResult(tr));
 		}
 		return ret;
 	}
 
 	public double recognize(String str, Locale lang) {
-		Transducer tc = getTransducer(lang, "analysis", at);
+		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
 		int recognized = 0;
 		String[] labels = LexicalAnalysisUtil.split(str);
 		outer: for (String label : labels)
@@ -342,14 +358,55 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	}
 
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean segments) {
-		Transducer tc = getTransducer(lang, "analysis", at);
+		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
 		String[] labels = LexicalAnalysisUtil.split(str);
 		List<WordToResults> ret = new ArrayList<WordToResults>(labels.length);
 		StringBuilder cur = new StringBuilder();
 		for (String label : labels)
 			if (!"".equals(label)) {
 				List<Result> r = toResult(tc.analyze(label));
-				if (r.isEmpty()) r = toResult(tc.analyze(label.toLowerCase()));
+				if (r.isEmpty() && supportedGuessLocales.contains(lang)) {
+					Transducer tc2 = getTransducer(lang,"guess",guessTransducers);
+					String reversedLabel = StringUtils.reverse(label);
+					List<Transducer.Result> analysis = Collections.EMPTY_LIST;
+					int length = reversedLabel.length();
+					while (analysis.isEmpty() && length>0)
+						analysis = tc2.analyze(reversedLabel.substring(0,length--));
+					if (!analysis.isEmpty()) {
+						float cw = Float.MAX_VALUE;
+						Transducer.Result bestResult = null;
+						for (Transducer.Result res : analysis) {
+							if (res.getWeight() < cw) {
+								bestResult = res;
+								cw = res.getWeight();
+							}
+						}
+						Collections.reverse(bestResult.getSymbols());
+						if (!bestResult.getSymbols().get(0).startsWith("[")) bestResult.getSymbols().add(0,"[WORD_ID=");
+						Result gr = toResult(bestResult);
+						gr.getParts().get(0).lemma=label.substring(0,label.length()-length-1)+gr.getParts().get(0).lemma;
+						List<String> gsegments = gr.getParts().get(0).getTags().get("SEGMENT");
+						if (gsegments!=null) {
+							List<String> nsegments = new ArrayList<String>();
+							int clindex = label.length()-1;
+							for (int i=gsegments.size()-1;i>=0;i--) {
+								String cs = gsegments.get(i).replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", "");
+								int cindex = cs.length()-1; 
+								while (cindex>=0 && clindex>=0 && label.charAt(clindex--)==cs.charAt(cindex--));
+								if (cindex!=-1) {
+									nsegments.add(label.substring(0,clindex+2) + gsegments.get(i).substring(cindex+2));
+									clindex=-1;
+									break;
+								} else nsegments.add(gsegments.get(i));
+							}
+							Collections.reverse(nsegments);
+							if (clindex!=-1) nsegments.set(0,label.substring(0,clindex+1)+nsegments.get(0));
+							gr.getParts().get(0).getTags().put("SEGMENT", nsegments);
+						}
+						gr.addGlobalTag("GUESSED", "TRUE");
+						r.add(gr);
+					}
+				}
 				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(label)));
 				Result bestResult = null;
 				float cw = Float.MAX_VALUE;
@@ -378,7 +435,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 							wp.getTags().put("BASEFORM_SEGMENT",bwpSegments);
 						}
 				if (!inflections.isEmpty() && supportedInflectionLocales.contains(lang)) {
-					Transducer tic = getTransducer(lang, "inflection", it);
+					Transducer tic = getTransducer(lang, "inflection", inflectionTransducers);
 					for (Result res : r)
 						for (WordPart wp : res.getParts()) {
 							List<String> inflectedC = new ArrayList<String>();
@@ -466,7 +523,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 
 	@Override
 	public String hyphenate(String string, Locale lang) {
-		Transducer tc = getTransducer(lang, "hyphenation", ht);
+		Transducer tc = getTransducer(lang, "hyphenation", hyphenationTransducers);
 		String[] labels = LexicalAnalysisUtil.split(string);
 		StringBuilder ret = new StringBuilder();
 		for (String label : labels)
@@ -539,6 +596,9 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
+		System.out.println(hfst.analyze("tliittasin",new Locale("fi"),Collections.EMPTY_LIST,false));
+		System.out.println(hfst.analyze("tliikkasin",new Locale("fi"),Collections.EMPTY_LIST,false));
+		System.out.println(hfst.analyze("twiittasin",new Locale("fi"),Collections.EMPTY_LIST,false));
 		System.out.println(hfst.analyze("635",new Locale("fi"),Collections.EMPTY_LIST,true));
 		System.out.println(hfst.baseform("ulkoasiainministeriövaa'at soitti fagottia", new Locale("fi"),true));
 		System.out.println(hfst.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true));
