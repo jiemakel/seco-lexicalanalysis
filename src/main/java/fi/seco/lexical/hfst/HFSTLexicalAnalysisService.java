@@ -180,7 +180,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 				if (h.isWeighted())
 					t = new WeightedTransducer(charstream, h, a);
 				else t = new UnweightedTransducer(charstream, h, a);
-				t.analyze(""); // make sure transducer is synchronously initialized
+				// t.analyze(""); // make sure transducer is synchronously initialized
 			} catch (IOException e) {
 				log.error("Couldn't initialize transducer " + file, e);
 				return null;
@@ -384,7 +384,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 						Collections.reverse(bestResult.getSymbols());
 						if (!bestResult.getSymbols().get(0).startsWith("[")) bestResult.getSymbols().add(0,"[WORD_ID=");
 						Result gr = toResult(bestResult);
-						gr.getParts().get(0).lemma=label.substring(0,label.length()-length-1)+gr.getParts().get(0).lemma;
+						gr.getParts().get(0).setLemma(label.substring(0,label.length()-length-1)+gr.getParts().get(0).getLemma());
 						List<String> gsegments = gr.getParts().get(0).getTags().get("SEGMENT");
 						if (gsegments!=null) {
 							List<String> nsegments = new ArrayList<String>();
@@ -596,6 +596,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy dog", new Locale("mdf")));
 		System.out.println(hfst.analyze("tliittasin",new Locale("fi"),Collections.EMPTY_LIST,false));
 		System.out.println(hfst.analyze("tliikkasin",new Locale("fi"),Collections.EMPTY_LIST,false));
 		System.out.println(hfst.analyze("twiittasin",new Locale("fi"),Collections.EMPTY_LIST,false));
@@ -609,7 +610,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("de")));
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("myv")));
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("en")));
-		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("mrj")));
+		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("mrj")));		
 		System.out.println(hfst.recognize("Eorum una, pars, quam Gallos obtinere dictum est, initium capit a flumine Rhodano, continetur Garumna flumine, Oceano, finibus Belgarum, attingit etiam ab Sequanis et Helvetiis flumen Rhenum, vergit ad septentriones.", new Locale("la")));
 		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, true, new Locale("fi")));
 		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, false, new Locale("fi")));

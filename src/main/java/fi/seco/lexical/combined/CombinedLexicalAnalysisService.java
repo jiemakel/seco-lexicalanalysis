@@ -41,6 +41,7 @@ import is2.util.OptionsSuper;
 import marmot.core.Tagger;
 import marmot.morph.Sentence;
 import marmot.morph.Word;
+import marmot.util.StringUtils;
 import opennlp.tools.sentdetect.SentenceDetector;
 import opennlp.tools.sentdetect.SentenceDetectorME;
 import opennlp.tools.sentdetect.SentenceModel;
@@ -302,7 +303,48 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		for (String sentence : getSentenceDetector(lang).sentDetect(str)) {
 			for (String word : t.tokenize(sentence)) {
 				List<Result> r = toResult(tc.analyze(word));
-				if (r.isEmpty()) r = toResult(tc.analyze(word.toLowerCase()));
+				if (r.isEmpty()) {
+					Transducer tc2 = getTransducer(lang,"guess",guessTransducers);
+					String reversedLabel = StringUtils.reverse(word);
+					List<Transducer.Result> analysis = Collections.EMPTY_LIST;
+					int length = reversedLabel.length();
+					while (analysis.isEmpty() && length>0)
+						analysis = tc2.analyze(reversedLabel.substring(0,length--));
+					if (!analysis.isEmpty()) {
+						float cw = Float.MAX_VALUE;
+						Transducer.Result bestResult = null;
+						for (Transducer.Result res : analysis) {
+							if (res.getWeight() < cw) {
+								bestResult = res;
+								cw = res.getWeight();
+							}
+						}
+						Collections.reverse(bestResult.getSymbols());
+						if (!bestResult.getSymbols().get(0).startsWith("[")) bestResult.getSymbols().add(0,"[WORD_ID=");
+						Result gr = toResult(bestResult);
+						gr.getParts().get(0).setLemma(word.substring(0,word.length()-length-1)+gr.getParts().get(0).getLemma());
+						List<String> gsegments = gr.getParts().get(0).getTags().get("SEGMENT");
+						if (gsegments!=null) {
+							List<String> nsegments = new ArrayList<String>();
+							int clindex = word.length()-1;
+							for (int j=gsegments.size()-1;j>=0;j--) {
+								String cs = gsegments.get(j).replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", "");
+								int cindex = cs.length()-1; 
+								while (cindex>=0 && clindex>=0 && word.charAt(clindex--)==cs.charAt(cindex--));
+								if (cindex!=-1) {
+									nsegments.add(word.substring(0,clindex+2) + gsegments.get(j).substring(cindex+2));
+									clindex=-1;
+									break;
+								} else nsegments.add(gsegments.get(j));
+							}
+							Collections.reverse(nsegments);
+							if (clindex!=-1) nsegments.set(0,word.substring(0,clindex+1)+nsegments.get(0));
+							gr.getParts().get(0).getTags().put("SEGMENT", nsegments);
+						}
+						gr.addGlobalTag("GUESSED", "TRUE");
+						r.add(gr);
+					}
+				}
 				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(word)));
 				Result bestResult = null;
 				boolean POS_MATCH = false;
@@ -476,6 +518,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
 		System.out.println(las.baseform("Me Aleksander Kolmas, Jumalan Armosta, koko Venäjänmaan Keisari ja Itsevaltias, Puolanmaan Zsaari, Suomen Suuriruhtinas, y.m., y.m., y.m. Teemme tiettäväksi: Suomenmaan Valtiosäätyjen alamaisesta esityksestä tahdomme Me täten armosta vahvistaa seuraavan rikoslain Suomen Suuriruhtinaanmaalle, jonka voimaanpanemisesta, niinkuin myöskin rangaistusten täytäntöönpanosta erityinen asetus annetaan:", new Locale("fi"), false));
+		System.out.println(las.baseform("twiittasin", new Locale("fi"), false));
 		System.out.println(las.analyze("kiipesin puuhun", new Locale("fi"),Collections.EMPTY_LIST,false,2));
 		System.out.println(las.baseform("ulkoasiainministeriövaa'at soitti fagottia", new Locale("fi"),true));
 		System.out.println(las.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true));
