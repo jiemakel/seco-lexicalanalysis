@@ -296,7 +296,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean baseformSegments, int depth) {
 		if (!supportedLocales.contains(lang)) return super.analyze(str, lang, inflections, baseformSegments);
 		Tokenizer t = getTokenizer(lang);
-		Transducer tc = getTransducer(lang, "analysis", at);
+		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
 		int i = 0;
 		List<WordToResults> ret = new ArrayList<WordToResults>();
 		for (String sentence : getSentenceDetector(lang).sentDetect(str)) {
@@ -340,7 +340,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 							wp.getTags().put("BASEFORM_SEGMENT",bwpSegments);
 						}				
 				if (!inflections.isEmpty() && supportedInflectionLocales.contains(lang)) {
-					Transducer tic = getTransducer(lang, "inflection", it);
+					Transducer tic = getTransducer(lang, "inflection", inflectionTransducers);
 					for (Result res : r)
 						for (WordPart wp : res.getParts()) {
 							List<String> inflectedC = new ArrayList<String>();
@@ -360,7 +360,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				}
 				ret.add(new WordToResults(word, r));
 			}
-			if (fi.equals(lang) && ret.size() - i <= 30 && depth > 0) {
+			if (fi.equals(lang) && ret.size() - i <= 120 && depth > 0) { // NOTE!: hard cutoff for sentence length
 				List<Word> tokens = new ArrayList<Word>(ret.size() - i);
 				int j = i;
 				while (i < ret.size()) {
@@ -475,6 +475,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
+		System.out.println(las.baseform("Me Aleksander Kolmas, Jumalan Armosta, koko Venäjänmaan Keisari ja Itsevaltias, Puolanmaan Zsaari, Suomen Suuriruhtinas, y.m., y.m., y.m. Teemme tiettäväksi: Suomenmaan Valtiosäätyjen alamaisesta esityksestä tahdomme Me täten armosta vahvistaa seuraavan rikoslain Suomen Suuriruhtinaanmaalle, jonka voimaanpanemisesta, niinkuin myöskin rangaistusten täytäntöönpanosta erityinen asetus annetaan:", new Locale("fi"), false));
 		System.out.println(las.analyze("kiipesin puuhun", new Locale("fi"),Collections.EMPTY_LIST,false,2));
 		System.out.println(las.baseform("ulkoasiainministeriövaa'at soitti fagottia", new Locale("fi"),true));
 		System.out.println(las.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true));
