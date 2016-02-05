@@ -510,7 +510,6 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				bestResult.addGlobalTag("BEST_MATCH", "TRUE");
 			}
 		}
-		System.out.println(ret.get(0).getAnalysis().size());
 		return ret;
 	}
 
