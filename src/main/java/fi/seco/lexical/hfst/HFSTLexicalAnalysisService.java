@@ -17,6 +17,9 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.carrotsearch.hppc.ObjectFloatOpenHashMap;
+import com.carrotsearch.hppc.procedures.ObjectFloatProcedure;
+
 import fi.seco.hfst.Transducer;
 import fi.seco.hfst.TransducerAlphabet;
 import fi.seco.hfst.TransducerHeader;
@@ -24,6 +27,7 @@ import fi.seco.hfst.UnweightedTransducer;
 import fi.seco.hfst.WeightedTransducer;
 import fi.seco.lexical.ALexicalAnalysisService;
 import fi.seco.lexical.LexicalAnalysisUtil;
+import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 import marmot.util.StringUtils;
 
@@ -43,6 +47,16 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	public static class Result {
 
 		private Map<String, List<String>> globalTags = new HashMap<String, List<String>>();
+		
+		public int hashCode() {
+			return globalTags.hashCode() + 31 * wordParts.hashCode();
+		};
+		
+		@Override
+		public boolean equals(Object obj) {
+			Result o = (Result)obj;
+			return o.globalTags.equals(globalTags) && o.wordParts.equals(wordParts);
+		}
 
 		public static class WordPart {
 			private String lemma;
@@ -75,6 +89,17 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			public String toString() {
 				return lemma + "(" + tags.toString() + ")";
 			}
+			
+			@Override
+			public int hashCode() {
+				return tags.hashCode()+31*lemma.hashCode();
+			}
+			
+			@Override
+			public boolean equals(Object obj) {
+				WordPart o = (WordPart)obj;
+				return o.tags.equals(tags) && o.lemma.equals(lemma);
+			}
 		}
 
 		private final List<WordPart> wordParts = new ArrayList<WordPart>();
@@ -84,7 +109,11 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			return wordParts.toString() + "&" + globalTags.toString() + ":" + weight;
 		}
 
-		private final float weight;
+		private float weight;
+		
+		public void setWeight(float weight) {
+			this.weight=weight;
+		}
 
 		public Result() {
 			this.weight = 1.0f;
@@ -364,7 +393,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		StringBuilder cur = new StringBuilder();
 		for (String label : labels)
 			if (!"".equals(label)) {
-				List<Result> r = toResult(tc.analyze(label));
+				final List<Result> r = toResult(tc.analyze(label));
 				if (r.isEmpty() && supportedGuessLocales.contains(lang)) {
 					Transducer tc2 = getTransducer(lang,"guess",guessTransducers);
 					String reversedLabel = StringUtils.reverse(label);
@@ -372,40 +401,47 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 					int length = reversedLabel.length();
 					while (analysis.isEmpty() && length>0)
 						analysis = tc2.analyze(reversedLabel.substring(0,length--));
-					if (!analysis.isEmpty()) {
-						float cw = Float.MAX_VALUE;
-						Transducer.Result bestResult = null;
-						for (Transducer.Result res : analysis) {
-							if (res.getWeight() < cw) {
-								bestResult = res;
-								cw = res.getWeight();
-							}
-						}
-						Collections.reverse(bestResult.getSymbols());
-						if (!bestResult.getSymbols().get(0).startsWith("[")) bestResult.getSymbols().add(0,"[WORD_ID=");
-						Result gr = toResult(bestResult);
+					for (Transducer.Result tr: analysis) {
+						Collections.reverse(tr.getSymbols());
+						if (!tr.getSymbols().get(0).startsWith("[")) tr.getSymbols().add(0,"[WORD_ID=");
+					}
+					ObjectFloatOpenHashMap<Result> gres = new ObjectFloatOpenHashMap<Result>();
+					for (Result gr : toResult(analysis)) {
+						if (gr.getParts().isEmpty()) continue;
 						gr.getParts().get(0).setLemma(label.substring(0,label.length()-length-1)+gr.getParts().get(0).getLemma());
 						List<String> gsegments = gr.getParts().get(0).getTags().get("SEGMENT");
 						if (gsegments!=null) {
 							List<String> nsegments = new ArrayList<String>();
 							int clindex = label.length()-1;
-							for (int i=gsegments.size()-1;i>=0;i--) {
-								String cs = gsegments.get(i).replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", "");
+							for (int j=gsegments.size()-1;j>=0;j--) {
+								String cs = gsegments.get(j);
 								int cindex = cs.length()-1; 
-								while (cindex>=0 && clindex>=0 && label.charAt(clindex--)==cs.charAt(cindex--));
+								while (cindex>=0 && clindex>=0) {
+									if (cs.charAt(cindex)=='»') cindex--;
+									else {
+										String tmp = cs.substring(0,cindex+1);
+										if (tmp.endsWith("{WB}") || tmp.endsWith("{XB}") || tmp.endsWith("{DB}") || tmp.endsWith("{MB}")) cindex-=4;
+										else if (tmp.endsWith("{STUB}")) cindex-=6;
+										else if (tmp.endsWith("{hyph?}")) cindex-=7;
+										else if (label.charAt(clindex--)!=cs.charAt(cindex--)) break;
+									}
+								}
 								if (cindex!=-1) {
-									nsegments.add(label.substring(0,clindex+2) + gsegments.get(i).substring(cindex+2));
+									nsegments.add(label.substring(0,clindex+2) + cs.substring(cindex+2));
 									clindex=-1;
 									break;
-								} else nsegments.add(gsegments.get(i));
+								} else nsegments.add(gsegments.get(j));
 							}
 							Collections.reverse(nsegments);
 							if (clindex!=-1) nsegments.set(0,label.substring(0,clindex+1)+nsegments.get(0));
 							gr.getParts().get(0).getTags().put("SEGMENT", nsegments);
 						}
 						gr.addGlobalTag("GUESSED", "TRUE");
-						r.add(gr);
+						gres.putOrAdd(gr, gr.getWeight(), gr.getWeight());
 					}
+					gres.forEach(new ObjectFloatProcedure<Result>() {
+						public void apply(Result value, float v2) { value.setWeight(1/v2); r.add(value); };
+					});
 				}
 				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(label)));
 				Result bestResult = null;

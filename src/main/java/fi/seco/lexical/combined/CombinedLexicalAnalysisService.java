@@ -22,6 +22,12 @@ import java.util.zip.ZipInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.carrotsearch.hppc.ObjectFloatMap;
+import com.carrotsearch.hppc.ObjectFloatOpenHashMap;
+import com.carrotsearch.hppc.predicates.ObjectPredicate;
+import com.carrotsearch.hppc.procedures.ObjectFloatProcedure;
+import com.carrotsearch.hppc.procedures.ObjectProcedure;
+
 import fi.seco.hfst.Transducer;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result;
@@ -302,7 +308,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		List<WordToResults> ret = new ArrayList<WordToResults>();
 		for (String sentence : getSentenceDetector(lang).sentDetect(str)) {
 			for (String word : t.tokenize(sentence)) {
-				List<Result> r = toResult(tc.analyze(word));
+				final List<Result> r = toResult(tc.analyze(word));
 				if (r.isEmpty()) {
 					Transducer tc2 = getTransducer(lang,"guess",guessTransducers);
 					String reversedLabel = StringUtils.reverse(word);
@@ -310,29 +316,34 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					int length = reversedLabel.length();
 					while (analysis.isEmpty() && length>0)
 						analysis = tc2.analyze(reversedLabel.substring(0,length--));
-					if (!analysis.isEmpty()) {
-						float cw = Float.MAX_VALUE;
-						Transducer.Result bestResult = null;
-						for (Transducer.Result res : analysis) {
-							if (res.getWeight() < cw) {
-								bestResult = res;
-								cw = res.getWeight();
-							}
-						}
-						Collections.reverse(bestResult.getSymbols());
-						if (!bestResult.getSymbols().get(0).startsWith("[")) bestResult.getSymbols().add(0,"[WORD_ID=");
-						Result gr = toResult(bestResult);
+					for (Transducer.Result tr: analysis) {
+						if (tr.getSymbols().isEmpty()) continue;
+						Collections.reverse(tr.getSymbols());
+						if (!tr.getSymbols().get(0).startsWith("[")) tr.getSymbols().add(0,"[WORD_ID=");
+					}
+					ObjectFloatOpenHashMap<Result> gres = new ObjectFloatOpenHashMap<Result>();
+					for (Result gr : toResult(analysis)) {
+						if (gr.getParts().isEmpty()) continue;
 						gr.getParts().get(0).setLemma(word.substring(0,word.length()-length-1)+gr.getParts().get(0).getLemma());
 						List<String> gsegments = gr.getParts().get(0).getTags().get("SEGMENT");
 						if (gsegments!=null) {
 							List<String> nsegments = new ArrayList<String>();
 							int clindex = word.length()-1;
 							for (int j=gsegments.size()-1;j>=0;j--) {
-								String cs = gsegments.get(j).replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", "");
+								String cs = gsegments.get(j);
 								int cindex = cs.length()-1; 
-								while (cindex>=0 && clindex>=0 && word.charAt(clindex--)==cs.charAt(cindex--));
+								while (cindex>=0 && clindex>=0) {
+									if (cs.charAt(cindex)=='»') cindex--;
+									else {
+										String tmp = cs.substring(0,cindex+1);
+										if (tmp.endsWith("{WB}") || tmp.endsWith("{XB}") || tmp.endsWith("{DB}") || tmp.endsWith("{MB}")) cindex-=4;
+										else if (tmp.endsWith("{STUB}")) cindex-=6;
+										else if (tmp.endsWith("{hyph?}")) cindex-=7;
+										else if (word.charAt(clindex--)!=cs.charAt(cindex--)) break;
+									}
+								}
 								if (cindex!=-1) {
-									nsegments.add(word.substring(0,clindex+2) + gsegments.get(j).substring(cindex+2));
+									nsegments.add(word.substring(0,clindex+2) + cs.substring(cindex+2));
 									clindex=-1;
 									break;
 								} else nsegments.add(gsegments.get(j));
@@ -342,28 +353,13 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 							gr.getParts().get(0).getTags().put("SEGMENT", nsegments);
 						}
 						gr.addGlobalTag("GUESSED", "TRUE");
-						r.add(gr);
+						gres.putOrAdd(gr, gr.getWeight(), gr.getWeight());
 					}
+					gres.forEach(new ObjectFloatProcedure<Result>() {
+						public void apply(Result value, float v2) { value.setWeight(1/v2); r.add(value); };
+					});
 				}
 				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(word)));
-				Result bestResult = null;
-				boolean POS_MATCH = false;
-				float cw = Float.MAX_VALUE;
-				for (Result res : r)
-					if (POS_MATCH) {
-						if (res.getGlobalTags().containsKey("POS_MATCH") && res.getWeight() < cw) {
-							bestResult = res;
-							cw = res.getWeight();
-						}
-					} else if (res.getGlobalTags().containsKey("POS_MATCH")) {
-						POS_MATCH = true;
-						bestResult = res;
-						cw = res.getWeight();
-					} else if (res.getWeight() < cw) {
-						bestResult = res;
-						cw = res.getWeight();
-					}
-				bestResult.addGlobalTag("BEST_MATCH", "TRUE");
 				if (baseformSegments)
 					for (Result res : r)
 						for (WordPart wp : res.getParts()) {
@@ -493,7 +489,28 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					}
 				}
 			}
+			for (WordToResults wtr : ret) {
+				Result bestResult = null;
+				boolean POS_MATCH = false;
+				float cw = Float.MAX_VALUE;
+				for (Result res : wtr.getAnalysis())
+					if (POS_MATCH) {
+						if (res.getGlobalTags().containsKey("POS_MATCH") && res.getWeight() < cw) {
+							bestResult = res;
+							cw = res.getWeight();
+						}
+					} else if (res.getGlobalTags().containsKey("POS_MATCH")) {
+						POS_MATCH = true;
+						bestResult = res;
+						cw = res.getWeight();
+					} else if (res.getWeight() < cw) {
+						bestResult = res;
+						cw = res.getWeight();
+					}
+				bestResult.addGlobalTag("BEST_MATCH", "TRUE");
+			}
 		}
+		System.out.println(ret.get(0).getAnalysis().size());
 		return ret;
 	}
 
@@ -517,8 +534,13 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
+		System.out.println(las.analyze("twiittasi", new Locale("fi"),Collections.EMPTY_LIST,false,2));
+		System.out.println(las.baseform("twiittasi", new Locale("fi"), false));
 		System.out.println(las.baseform("Me Aleksander Kolmas, Jumalan Armosta, koko Venäjänmaan Keisari ja Itsevaltias, Puolanmaan Zsaari, Suomen Suuriruhtinas, y.m., y.m., y.m. Teemme tiettäväksi: Suomenmaan Valtiosäätyjen alamaisesta esityksestä tahdomme Me täten armosta vahvistaa seuraavan rikoslain Suomen Suuriruhtinaanmaalle, jonka voimaanpanemisesta, niinkuin myöskin rangaistusten täytäntöönpanosta erityinen asetus annetaan:", new Locale("fi"), false));
 		System.out.println(las.baseform("twiittasin", new Locale("fi"), false));
+		System.out.println(las.baseform("twiittasi", new Locale("fi"), false));
+		System.out.println(las.baseform("hän twiittasi", new Locale("fi"), false));
+		System.out.println(las.analyze("hän twiittasi", new Locale("fi"),Collections.EMPTY_LIST,false,2));
 		System.out.println(las.analyze("kiipesin puuhun", new Locale("fi"),Collections.EMPTY_LIST,false,2));
 		System.out.println(las.baseform("ulkoasiainministeriövaa'at soitti fagottia", new Locale("fi"),true));
 		System.out.println(las.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true));
