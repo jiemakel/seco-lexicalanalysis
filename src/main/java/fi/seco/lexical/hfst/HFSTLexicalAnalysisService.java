@@ -283,8 +283,10 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 						}
 					}
 				} else if (s.charAt(s.length() - 1) == ']') {
-					if (parsingSegment)
+					if (parsingSegment) {
+						if (w==null) w = new WordPart();
 						w.addTag("SEGMENT", lemma.toString());
+					}
 					else if (parsingTag) {
 						if (s.equals("]"))
 							lemma.append('[');
