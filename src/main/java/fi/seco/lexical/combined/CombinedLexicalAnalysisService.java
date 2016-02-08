@@ -427,12 +427,14 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				for (int k = 0; k < tags.size(); k++)
 					for (Result r : ret.get(i++).getAnalysis())
 						if (!r.getParts().isEmpty()) {
-							List<String> aPOS = r.getParts().get(r.getParts().size() - 1).getTags().get("UPOS");
-							if (aPOS != null) {
-								List<String> ctags = tags.get(k);
-								Set<String> gPOS = rmap(ctags.get(0));
-								for (String pos : aPOS)
-									if (gPOS.contains(pos)) r.addGlobalTag("POS_MATCH", "TRUE");
+							if (r.getParts().size()==1 && "kuin".equals(r.getParts().get(0).getLemma())) r.addGlobalTag("POS_MATCH", "TRUE"); else { // Dirty hack for kuin  
+								List<String> aPOS = r.getParts().get(r.getParts().size() - 1).getTags().get("UPOS");
+								if (aPOS != null) {
+									List<String> ctags = tags.get(k);
+									Set<String> gPOS = rmap(ctags.get(0));
+									for (String pos : aPOS)
+										if (gPOS.contains(pos)) r.addGlobalTag("POS_MATCH", "TRUE");
+								}
 							}
 						}
 				if (depth > 1) {
@@ -561,7 +563,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
 		print(las.analyze("spårassa", new Locale("fi"),Collections.EMPTY_LIST,false,2));
-		System.out.println(las.baseform("Meide twiittaili spårassa IBM:n insinörtin kanssa devaamisesta. Olin iha megapöhinöissä", new Locale("fi"), false));
+		System.out.println(las.baseform("Meide twiittaili spårassa IBM:n insinörtin kanssa devaamisesta kuin mikäkin daiju. Olin iha megapöhinöissä", new Locale("fi"), false));
 		System.out.println(las.baseform("Istuin spårassa.", new Locale("fi"), false));
 		System.out.println(las.baseform("baa", new Locale("fi"), false));
 		System.out.println(las.analyze("baa", new Locale("fi"),Collections.EMPTY_LIST,false,2));
