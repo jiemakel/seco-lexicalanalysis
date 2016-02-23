@@ -44,7 +44,7 @@ public class SnowballLexicalAnalysisService extends ALexicalAnalysisService {
 	private final static Pattern sp = Pattern.compile("\\P{IsL}+");
 
 	@Override
-	public String baseform(String string, Locale lang, boolean partition) {
+	public String baseform(String string, Locale lang, boolean partition, boolean guessUnknown) {
 		if (lang == null) return string;
 		lang = new Locale(lang.getLanguage());
 		if (s.containsKey(lang)) {

@@ -28,11 +28,11 @@ public class CompoundLexicalAnalysisService implements ILexicalAnalysisService {
 	}
 
 	@Override
-	public String baseform(String string, Locale lang, boolean partition) {
-		if (bfs.containsKey(lang)) return bfs.get(lang).baseform(string, lang, partition);
+	public String baseform(String string, Locale lang, boolean partition, boolean guessUnknown) {
+		if (bfs.containsKey(lang)) return bfs.get(lang).baseform(string, lang, partition, guessUnknown);
 		if (lang != null && !"".equals(lang.getCountry())) {
 			lang = new Locale(lang.getLanguage());
-			if (bfs.containsKey(lang)) return bfs.get(lang).baseform(string, lang, partition);
+			if (bfs.containsKey(lang)) return bfs.get(lang).baseform(string, lang, partition, guessUnknown);
 		}
 		return string;
 	}
@@ -73,11 +73,11 @@ public class CompoundLexicalAnalysisService implements ILexicalAnalysisService {
 	}
 
 	@Override 
-	public String inflect(String string, List<String> inflections, boolean segments, boolean baseform, Locale lang) {
-		if (ifs.containsKey(lang)) return ifs.get(lang).inflect(string, inflections, segments, baseform, lang);
+	public String inflect(String string, List<String> inflections, boolean segments, boolean baseform, boolean guessUnknown, Locale lang) {
+		if (ifs.containsKey(lang)) return ifs.get(lang).inflect(string, inflections, segments, baseform, guessUnknown, lang);
 		if (lang != null && !"".equals(lang.getCountry())) {
 			lang = new Locale(lang.getLanguage());
-			if (ifs.containsKey(lang)) return ifs.get(lang).inflect(string, inflections, segments, baseform, lang);
+			if (ifs.containsKey(lang)) return ifs.get(lang).inflect(string, inflections, segments, baseform, guessUnknown, lang);
 		}
 		return string;
 	}

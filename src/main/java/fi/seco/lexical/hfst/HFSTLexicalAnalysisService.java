@@ -390,7 +390,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		return ((double) recognized) / labels.length;
 	}
 
-	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean segments) {
+	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean segments, boolean guessUnknown) {
 		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
 		String[] labels = LexicalAnalysisUtil.split(str);
 		List<WordToResults> ret = new ArrayList<WordToResults>(labels.length);
@@ -398,7 +398,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		for (String label : labels)
 			if (!"".equals(label)) {
 				final List<Result> r = toResult(tc.analyze(label));
-				if (r.isEmpty() && supportedGuessLocales.contains(lang) && label.length()>=4) { // Fixed cutoff, don't guess words shorter than 4 chars.
+				if (r.isEmpty() && guessUnknown && supportedGuessLocales.contains(lang) && label.length()>=4) { // Fixed cutoff, don't guess words shorter than 4 chars.
 					Transducer tc2 = getTransducer(lang,"guess",guessTransducers);
 					String reversedLabel = StringUtils.reverse(label);
 					List<Transducer.Result> analysis = Collections.EMPTY_LIST;
@@ -470,7 +470,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 				if (segments)
 					for (Result res : r)
 						for (WordPart wp : res.getParts()) {
-							List<WordToResults> analysis = analyze(wp.getLemma(), lang, Collections.EMPTY_LIST, false);
+							List<WordToResults> analysis = analyze(wp.getLemma(), lang, Collections.EMPTY_LIST, false, guessUnknown);
 							if (analysis.size()==0)
 								continue;
 							Result br = getBestResult(analysis.get(0));
@@ -537,9 +537,9 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	}
 
 	@Override
-	public String baseform(String string, Locale lang, boolean segments) {
+	public String baseform(String string, Locale lang, boolean segments, boolean guessUnknown) {
 		try {
-			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST, segments);
+			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST, segments, guessUnknown);
 			StringBuilder ret = new StringBuilder();
 			for (WordToResults cr : crc) {
 				ret.append(getBestLemma(cr, lang, segments));
@@ -596,9 +596,9 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	}
 
 	@Override
-	public String inflect(String string, List<String> inflections, boolean segments, boolean baseform, Locale lang) {
+	public String inflect(String string, List<String> inflections, boolean segments, boolean baseform, boolean guessUnknown, Locale lang) {
 		StringBuilder ret = new StringBuilder();
-		for (WordToResults part : analyze(string, lang, inflections, false)) {
+		for (WordToResults part : analyze(string, lang, inflections, false, guessUnknown)) {
 			String inflected = getBestInflection(part, lang, segments, baseform);
 			if (!inflected.isEmpty())
 				ret.append(inflected);
@@ -647,13 +647,13 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy dog", new Locale("mdf")));
-		System.out.println(hfst.analyze("tliittasin",new Locale("fi"),Collections.EMPTY_LIST,false));
-		System.out.println(hfst.analyze("tliikkasin",new Locale("fi"),Collections.EMPTY_LIST,false));
-		System.out.println(hfst.analyze("twiittasin",new Locale("fi"),Collections.EMPTY_LIST,false));
-		System.out.println(hfst.analyze("635",new Locale("fi"),Collections.EMPTY_LIST,true));
-		System.out.println(hfst.baseform("ulkoasiainministeriövaa'at soitti fagottia", new Locale("fi"),true));
-		System.out.println(hfst.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true));
-		System.out.println(hfst.baseform("635. 635 Helsingissä ulkoasiainministeriöstä vastaukset sanomalehdet varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true));
+		System.out.println(hfst.analyze("tliittasin",new Locale("fi"),Collections.EMPTY_LIST,false,true));
+		System.out.println(hfst.analyze("tliikkasin",new Locale("fi"),Collections.EMPTY_LIST,false,true));
+		System.out.println(hfst.analyze("twiittasin",new Locale("fi"),Collections.EMPTY_LIST,false,true));
+		System.out.println(hfst.analyze("635",new Locale("fi"),Collections.EMPTY_LIST,true,true));
+		System.out.println(hfst.baseform("ulkoasiainministeriövaa'at soitti fagottia", new Locale("fi"),true,true));
+		System.out.println(hfst.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true,true));
+		System.out.println(hfst.baseform("635. 635 Helsingissä ulkoasiainministeriöstä vastaukset sanomalehdet varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true,true));
 		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("la")));
@@ -662,8 +662,8 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("en")));
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("mrj")));		
 		System.out.println(hfst.recognize("Eorum una, pars, quam Gallos obtinere dictum est, initium capit a flumine Rhodano, continetur Garumna flumine, Oceano, finibus Belgarum, attingit etiam ab Sequanis et Helvetiis flumen Rhenum, vergit ad septentriones.", new Locale("la")));
-		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, true, new Locale("fi")));
-		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, false, new Locale("fi")));
+		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, true, true, new Locale("fi")));
+		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, false, false, new Locale("fi")));
 		//System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi")));
 		//System.out.println(fdg.analyze("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
 		//System.out.println(fdg.baseform("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
