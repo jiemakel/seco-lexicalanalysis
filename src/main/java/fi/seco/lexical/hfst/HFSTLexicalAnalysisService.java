@@ -414,6 +414,12 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 						ObjectIntOpenHashMap<Result> gres = new ObjectIntOpenHashMap<Result>();
 						outer: for (Result gr : toResult(analysis)) {
 							if (gr.getParts().isEmpty()) continue;
+							boolean empty = true;
+							for (WordPart p : gr.getParts()) if (!"".equals(p.getLemma())) {
+								empty=false;
+								break;
+							}
+							if (empty) continue;
 							gr.getParts().get(0).getTags().remove("GUESS_CATEGORY");
 							gr.getParts().get(0).getTags().remove("KAV");
 							gr.getParts().get(0).getTags().remove("PROPER");

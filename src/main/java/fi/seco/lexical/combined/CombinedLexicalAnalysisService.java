@@ -321,6 +321,12 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 						ObjectIntOpenHashMap<Result> gres = new ObjectIntOpenHashMap<Result>();
 						outer: for (Result gr : toResult(analysis)) {
 							if (gr.getParts().isEmpty()) continue;
+							boolean empty = true;
+							for (WordPart p : gr.getParts()) if (!"".equals(p.getLemma())) {
+								empty=false;
+								break;
+							}
+							if (empty) continue;
 							gr.getParts().get(0).getTags().remove("GUESS_CATEGORY");
 							gr.getParts().get(0).getTags().remove("KAV");
 							gr.getParts().get(0).getTags().remove("PROPER");
@@ -564,9 +570,9 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
+		System.out.println(las.baseform("Ter>vo-»uainajan",new Locale("fi"),false,true));
 		print(las.analyze("spårassa", new Locale("fi"),Collections.EMPTY_LIST,false,true,false,2));
 		print(las.analyze("spårassa", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
-		System.exit(0);
 		System.out.println(las.baseform("Meide twiittaili spårassa IBM:n insinörtin kanssa devaamisesta kuin mikäkin daiju. Olin iha megapöhinöissä", new Locale("fi"), false, true));
 		System.out.println(las.baseform("Istuin spårassa.", new Locale("fi"), false, true));
 		System.out.println(las.baseform("baa", new Locale("fi"), false, true));
