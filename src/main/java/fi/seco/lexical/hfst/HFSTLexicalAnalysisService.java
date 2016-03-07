@@ -30,6 +30,7 @@ import fi.seco.hfst.WeightedTransducer;
 import fi.seco.lexical.ALexicalAnalysisService;
 import fi.seco.lexical.LexicalAnalysisUtil;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result;
+import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.WordToResults;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 import marmot.util.StringUtils;
 
@@ -465,15 +466,17 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 					}
 				}
 				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(label)));
-				Result bestResult = null;
+				List<Result> bestResult = new ArrayList<Result>();
 				float cw = Float.MAX_VALUE;
 				for (Result res : r) {
 					if (res.getWeight() < cw) {
-						bestResult = res;
+						bestResult.clear();
+						bestResult.add(res);
 						cw = res.getWeight();
-					}
+					} else if (res.getWeight() == cw) bestResult.add(res);
 				}
-				bestResult.addGlobalTag("BEST_MATCH", "TRUE");
+				for (Result res: bestResult)
+					res.addGlobalTag("BEST_MATCH", "TRUE");
 				if (segments)
 					for (Result res : r)
 						for (WordPart wp : res.getParts()) {
@@ -516,18 +519,16 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	}
 	
 	protected Result getBestResult(WordToResults cr) {
-		float cw = Float.MAX_VALUE;
 		Result ret = null;
 		for (Result r : cr.getAnalysis())
-			if (r.getWeight() < cw) ret=r;
+			if (r.getGlobalTags().containsKey("BEST_MATCH")) ret=r;
 		return ret;
 	}
 
 	protected String getBestLemma(WordToResults cr, Locale lang, boolean segments) {
-		float cw = Float.MAX_VALUE;
 		StringBuilder cur = new StringBuilder();
 		for (Result r : cr.getAnalysis())
-			if (r.getWeight() < cw) {
+			if (r.getGlobalTags().containsKey("BEST_MATCH")) {
 				cur.setLength(0);
 				for (WordPart wp : r.getParts())
 					if (segments) {
@@ -538,7 +539,6 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 					}
 					else cur.append(wp.getLemma());
 				if (segments && cur.length()>0) cur.setLength(cur.length()-1);
-				cw = r.getWeight();
 			}
 		return cur.toString();
 	}
@@ -616,12 +616,10 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	}
 
 	protected String getBestInflection(WordToResults cr, Locale lang, boolean segments, boolean baseform) {
-		float cw = Float.MAX_VALUE;
 		StringBuilder cur = new StringBuilder();
 		boolean foundInflection = baseform;
 		for (Result r : cr.getAnalysis())
-			if (r.getWeight() < cw) {
-				cw = r.getWeight();
+			if (r.getGlobalTags().containsKey("BEST_MATCH")) {
 				cur.setLength(0);
 				for (int i = 0; i < r.getParts().size() - 1; i++) {
 					WordPart wp = r.getParts().get(i);

@@ -248,54 +248,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 			return string;
 		}
 	}
-
-	@Override
-	protected String getBestLemma(WordToResults cr, Locale lang, boolean segments) {
-		float cw = Float.MAX_VALUE;
-		StringBuilder cur = new StringBuilder();
-		for (Result r : cr.getAnalysis())
-			if (r.getWeight() < cw) {
-				cur.setLength(0);
-				for (WordPart wp : r.getParts())
-					if (segments) {
-						if (wp.getTags().containsKey("BASEFORM_SEGMENT")) for (String s : wp.getTags().get("BASEFORM_SEGMENT")) 
-							if (!"-0".equals(s)) 
-								cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
-						cur.append('#');
-					}
-					else cur.append(wp.getLemma());
-				if (segments && cur.length()>0) cur.setLength(cur.length()-1);
-				cw = r.getWeight();
-			}
-		cw = Float.MAX_VALUE;
-		for (Result r : cr.getAnalysis())
-			if (r.getGlobalTags().containsKey("POS_MATCH") && r.getWeight() < cw) {
-				cur.setLength(0);
-				for (WordPart wp : r.getParts())
-					if (segments) {
-						if (wp.getTags().containsKey("BASEFORM_SEGMENT")) for (String s : wp.getTags().get("BASEFORM_SEGMENT")) 
-							if (!"-0".equals(s)) 
-								cur.append(s.replace("»", "").replace("{WB}", "#").replace("{XB}", "").replace("{DB}", "").replace("{MB}", "").replace("{STUB}", "").replace("{hyph?}", ""));
-						cur.append('#');
-					}
-					else cur.append(wp.getLemma());
-				if (segments && cur.length()>0) cur.setLength(cur.length()-1);
-				cw = r.getWeight();
-			}
-		return cur.toString();
-	}
 	
-	protected Result getBestResult(WordToResults cr) {
-		float cw = Float.MAX_VALUE;
-		Result ret = null;
-		for (Result r : cr.getAnalysis())
-			if (r.getWeight() < cw) ret=r;
-		for (Result r : cr.getAnalysis())
-			if (r.getGlobalTags().containsKey("POS_MATCH") && r.getWeight() < cw) 
-				ret=r;
-		return ret;
-	}
-
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean baseformSegments, boolean guessUnknown, boolean segmentUnknown, int depth) {
 		if (!supportedLocales.contains(lang)) return super.analyze(str, lang, inflections, baseformSegments, guessUnknown, segmentUnknown);
 		Tokenizer t = getTokenizer(lang);
@@ -503,20 +456,31 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				}
 			}
 			for (WordToResults wtr : ret) {
-				Result bestResult = null;
+				List<Result> bestResult = new ArrayList<Result>();
 				boolean POS_MATCH = false;
 				float cw = Float.MAX_VALUE;
 				int guessCount = 0;
 				for (Result res : wtr.getAnalysis())
 					if (POS_MATCH) {
-						if (res.getGlobalTags().containsKey("POS_MATCH") && res.getWeight() < cw) {
-							List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
-							int ngc = 0;
-							if (gc!=null) ngc=Integer.parseInt(gc.get(0));
-							if (ngc>=guessCount) {
-								bestResult = res;
+						if (res.getGlobalTags().containsKey("POS_MATCH")) {
+							if (res.getWeight() < cw) {
+								int ngc = 0;
+								List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
+								if (gc!=null) ngc=Integer.parseInt(gc.get(0));
+								bestResult.clear();
+								bestResult.add(res);
 								cw = res.getWeight();
 								guessCount=ngc;
+							} else if (res.getWeight() == cw) {
+								int ngc = 0;
+								List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
+								if (gc!=null) ngc=Integer.parseInt(gc.get(0));
+								if (ngc>guessCount) {
+									guessCount=ngc;
+									bestResult.clear();
+								}
+								if (ngc==guessCount)
+									bestResult.add(res);
 							}
 						}
 					} else if (res.getGlobalTags().containsKey("POS_MATCH")) {
@@ -524,20 +488,31 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 						int ngc = 0;
 						if (gc!=null) ngc=Integer.parseInt(gc.get(0));
 						POS_MATCH = true;
-						bestResult = res;
+						bestResult.clear();
+						bestResult.add(res);
 						cw = res.getWeight();
 						guessCount=ngc;
 					} else if (res.getWeight() < cw) {
-						List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
 						int ngc = 0;
+						List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
 						if (gc!=null) ngc=Integer.parseInt(gc.get(0));
-						if (ngc>=guessCount) {
-							bestResult = res;
-							cw = res.getWeight();
+						bestResult.clear();
+						bestResult.add(res);
+						cw = res.getWeight();
+						guessCount=ngc;
+					} else if (res.getWeight() == cw) {
+						int ngc = 0;
+						List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
+						if (gc!=null) ngc=Integer.parseInt(gc.get(0));
+						if (ngc>guessCount) {
 							guessCount=ngc;
+							bestResult.clear();
 						}
+						if (ngc==guessCount)
+							bestResult.add(res);
 					}
-				bestResult.addGlobalTag("BEST_MATCH", "TRUE");
+				for (Result res : bestResult)
+					res.addGlobalTag("BEST_MATCH", "TRUE");
 			}
 		}
 		return ret;
