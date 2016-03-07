@@ -385,19 +385,28 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					tags = fitag.tag(new Sentence(tokens));
 				}
 				i = j;
-				for (int k = 0; k < tags.size(); k++)
-					for (Result r : ret.get(i++).getAnalysis())
+				for (int k = 0; k < tags.size(); k++) {
+					WordToResults wtr = ret.get(i++);
+					for (Result r : wtr.getAnalysis()) {
 						if (!r.getParts().isEmpty()) {
-							if (r.getParts().size()==1 && "kuin".equals(r.getParts().get(0).getLemma())) r.addGlobalTag("POS_MATCH", "TRUE"); else { // Dirty hack for kuin  
+							if (r.getParts().size()==1 && (// Dirty hacks
+								("kuin".equals(wtr.getWord().toLowerCase()) && "kuin".equals(r.getParts().get(0).getLemma())) ||
+								("niiden".equals(wtr.getWord().toLowerCase()) && "ne".equals(r.getParts().get(0).getLemma()))
+								)) r.addGlobalTag("POS_MATCH", "TRUE");  
+							else {   
 								List<String> aPOS = r.getParts().get(r.getParts().size() - 1).getTags().get("UPOS");
 								if (aPOS != null) {
 									List<String> ctags = tags.get(k);
 									Set<String> gPOS = rmap(ctags.get(0));
 									for (String pos : aPOS)
-										if (gPOS.contains(pos)) r.addGlobalTag("POS_MATCH", "TRUE");
+										if (gPOS.contains(pos) && !(// Dirty hacks
+											"niiden".equals(wtr.getWord().toLowerCase()) && "niisi".equals(r.getParts().get(0).getLemma())
+										)) r.addGlobalTag("POS_MATCH", "TRUE");
 								}
 							}
 						}
+					}
+				}
 				if (depth > 1) {
 					i = j;
 					SentenceData09 sd = new SentenceData09();
@@ -546,6 +555,8 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
 		System.out.println(las.baseform("Ter>vo-»uainajan",new Locale("fi"),false,true));
+		System.out.println(las.baseform("niiden",new Locale("fi"),false,true));
+		print(las.analyze("niiden kuin", new Locale("fi"),Collections.EMPTY_LIST,false,true,false,2));
 		print(las.analyze("spårassa", new Locale("fi"),Collections.EMPTY_LIST,false,true,false,2));
 		print(las.analyze("spårassa", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.out.println(las.baseform("Meide twiittaili spårassa IBM:n insinörtin kanssa devaamisesta kuin mikäkin daiju. Olin iha megapöhinöissä", new Locale("fi"), false, true));
