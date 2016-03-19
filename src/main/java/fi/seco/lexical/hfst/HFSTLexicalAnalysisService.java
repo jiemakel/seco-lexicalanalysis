@@ -148,9 +148,10 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			this.globalTags = globalTags;
 		}
 
-		public void addGlobalTag(String key, String value) {
+		public Result addGlobalTag(String key, String value) {
 			if (!globalTags.containsKey(key)) globalTags.put(key, new ArrayList<String>());
 			globalTags.get(key).add(value);
+			return this;
 		}
 
 	}
@@ -378,18 +379,44 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		}
 		return ret;
 	}
+	
+	public static class RecognitionResult {
+		private final int recognized;
+		private final int unrecognized;
+		private final double rate;
+		public RecognitionResult(int recognized, int unrecognized) {
+			this.recognized = recognized;
+			this.unrecognized = unrecognized;
+			int total = recognized+unrecognized;
+			if (total==0) this.rate=0;
+			else this.rate = ((double)recognized)/total;
+		}
+		public int getRecognized() {
+			return recognized;
+		}
+		public int getUnrecognized() {
+			return unrecognized;
+		}
+		public double getRate() {
+			return rate;
+		}
+		
+	}
 
-	public double recognize(String str, Locale lang) {
+	public RecognitionResult recognize(String str, Locale lang) {
 		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
 		int recognized = 0;
+		int unrecognized = 0;
 		String[] labels = LexicalAnalysisUtil.split(str);
-		outer: for (String label : labels)
+		outer: for (String label : labels) {
 			for (Transducer.Result tr : tc.analyze(label))
-				if (!tr.getSymbols().isEmpty() && !tr.getSymbols().contains("»") && !tr.getSymbols().contains("[POS=PUNCT]") && !tr.getSymbols().contains("PUNCT") && !tr.getSymbols().contains("+PUNCT")) {
+				if (!tr.getSymbols().isEmpty()) {
 					recognized++;
 					continue outer;
 				}
-		return ((double) recognized) / labels.length;
+			unrecognized++;
+		}
+		return new RecognitionResult(recognized,unrecognized);
 	}
 
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean segments, boolean guessUnknown, boolean segmentUnknown) {
@@ -465,7 +492,8 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 						});
 					}
 				}
-				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(label)));
+				if (r.isEmpty())
+					r.add(new Result().addGlobalTag("UNKNOWN", "TRUE").addPart(new WordPart(label)));
 				List<Result> bestResult = new ArrayList<Result>();
 				float cw = Float.MAX_VALUE;
 				for (Result res : r) {

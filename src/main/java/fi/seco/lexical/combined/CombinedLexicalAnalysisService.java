@@ -26,7 +26,9 @@ import com.carrotsearch.hppc.ObjectIntOpenHashMap;
 import com.carrotsearch.hppc.procedures.ObjectIntProcedure;
 
 import fi.seco.hfst.Transducer;
+import fi.seco.lexical.LexicalAnalysisUtil;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService;
+import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.RecognitionResult;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 import is2.data.Cluster;
 import is2.data.Long2Int;
@@ -324,7 +326,8 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 						});
 					}
 				}
-				if (r.isEmpty()) r.add(new Result().addPart(new WordPart(word)));
+				if (r.isEmpty())
+					r.add(new Result().addGlobalTag("UNKNOWN", "TRUE").addPart(new WordPart(word)));
 				if (baseformSegments)
 					for (Result res : r)
 						for (WordPart wp : res.getParts()) {
@@ -551,6 +554,22 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				System.out.println(wtr.getWord()+":"+r.getWeight()+"->"+r.getGlobalTags()+"/"+r.getParts());
 	}
 	
+	public RecognitionResult recognize(String str, Locale lang) {
+		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
+		Tokenizer t = getTokenizer(lang);
+		int recognized = 0;
+		int unrecognized = 0;
+		for (String sentence : getSentenceDetector(lang).sentDetect(str))
+			outer: for (String label : t.tokenize(sentence)) {
+				for (Transducer.Result tr : tc.analyze(label))
+					if (!tr.getSymbols().isEmpty()) {
+						recognized++;
+						continue outer;
+					}
+				unrecognized++;
+			}
+		return new RecognitionResult(recognized,unrecognized);
+	}
 
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
