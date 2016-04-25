@@ -1,9 +1,7 @@
 package fi.seco.lexical;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -44,7 +42,7 @@ public class SnowballLexicalAnalysisService extends ALexicalAnalysisService {
 	private final static Pattern sp = Pattern.compile("\\P{IsL}+");
 
 	@Override
-	public String baseform(String string, Locale lang, boolean partition, boolean guessUnknown) {
+	public String baseform(String string, Locale lang, boolean markSegments, boolean guessUnknown, int maxErrorCorrectDistance) {
 		if (lang == null) return string;
 		lang = new Locale(lang.getLanguage());
 		if (s.containsKey(lang)) {

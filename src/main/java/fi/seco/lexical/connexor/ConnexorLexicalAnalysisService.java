@@ -10,7 +10,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -20,15 +19,14 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.IntObjectMap;
-import com.carrotsearch.hppc.IntObjectOpenHashMap;
+import com.carrotsearch.hppc.ObjectIntHashMap;
 import com.carrotsearch.hppc.ObjectIntMap;
-import com.carrotsearch.hppc.ObjectIntOpenHashMap;
 import com.dyuproject.protostuff.LinkedBuffer;
 import com.dyuproject.protostuff.ProtostuffIOUtil;
 
 import fi.seco.lexical.ALexicalAnalysisService;
-import fi.seco.lexical.ILexicalAnalysisService;
 import fi.seco.lexical.LexicalAnalysisUtil;
 import fi.seco.lexical.connexor.model.ConnexorRequest;
 import fi.seco.lexical.connexor.model.LANGResponse;
@@ -72,7 +70,7 @@ public class ConnexorLexicalAnalysisService extends ALexicalAnalysisService {
 	private static final int MPTPort = 52013;
 	private static final int MMDPort = 52014;
 
-	private static ObjectIntMap<Key> services = new ObjectIntOpenHashMap<Key>();
+	private static ObjectIntMap<Key> services = new ObjectIntHashMap<Key>();
 	static {
 		services.put(new Key(Service.FDG, new Locale("fi")), 52001);
 		services.put(new Key(Service.FDG, new Locale("sv")), 52002);
@@ -81,12 +79,12 @@ public class ConnexorLexicalAnalysisService extends ALexicalAnalysisService {
 		services.put(new Key(Service.MSUM, new Locale("sv")), 52011);
 		services.put(new Key(Service.MSUM, new Locale("en")), 52012);
 	}
-	private final IntObjectMap<ConcurrentLinkedQueue<Socket>> sockets = new IntObjectOpenHashMap<ConcurrentLinkedQueue<Socket>>();
+	private final IntObjectMap<ConcurrentLinkedQueue<Socket>> sockets = new IntObjectHashMap<ConcurrentLinkedQueue<Socket>>();
 
 	private final static Pattern p = Pattern.compile("<lemma>(.*)</lemma>");
 
 	@Override
-	public String baseform(String str, Locale lang, boolean partition, boolean guessUnknown) {
+	public String baseform(String str, Locale lang, boolean partition, boolean guessUnknown, int maxEditDistance) {
 		if (lang == null || str.length() == 0) return str;
 		/*MPTResponse res = analyzeMPT(str, lang);
 		StringBuilder sb = new StringBuilder();
@@ -278,8 +276,8 @@ public class ConnexorLexicalAnalysisService extends ALexicalAnalysisService {
 	public static void main(String[] args) throws Exception {
 		final ConnexorLexicalAnalysisService fdg = new ConnexorLexicalAnalysisService();
 		System.out.println("---------------------------------------------------------------------------------------------------------------------------------------");
-		System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi"),false,false));
-		System.out.println(fdg.baseform("Joukahaisen mierolla tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi"),false,false));
+		System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi"),false,false,0));
+		System.out.println(fdg.baseform("Joukahaisen mierolla tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi"),false,false,0));
 		System.out.println("---------------------------------------------------------------------------------------------------------------------------------------");
 		System.out.println(fdg.analyzeFDG("Joukahaisen mierolla tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
 		System.out.println("---------------------------------------------------------------------------------------------------------------------------------------");

@@ -17,9 +17,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.carrotsearch.hppc.ObjectFloatOpenHashMap;
-import com.carrotsearch.hppc.ObjectIntOpenHashMap;
-import com.carrotsearch.hppc.procedures.ObjectFloatProcedure;
+import com.carrotsearch.hppc.ObjectIntHashMap;
 import com.carrotsearch.hppc.procedures.ObjectIntProcedure;
 
 import fi.seco.hfst.Transducer;
@@ -38,15 +36,39 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	private static final Logger log = LoggerFactory.getLogger(HFSTLexicalAnalysisService.class);
 
 	protected final Map<Locale, Transducer> analysisTransducers = new HashMap<Locale, Transducer>();
+	protected final Map<Locale, char[]> alphabets = new HashMap<Locale, char[]>();
 	private final Map<Locale, Transducer> hyphenationTransducers = new HashMap<Locale, Transducer>();
 	protected final Map<Locale, Transducer> inflectionTransducers = new HashMap<Locale, Transducer>();
 	protected final Map<Locale, Transducer> guessTransducers = new HashMap<Locale, Transducer>();
 	protected final Map<Locale, Transducer> guessSegmentTransducers = new HashMap<Locale, Transducer>();
+	protected final Map<Locale, Transducer> fuzzyTransducers = new HashMap<Locale, Transducer>();
+	protected final Map<Locale, Transducer> fuzzySegmentTransducers = new HashMap<Locale, Transducer>();
 
 	private final Collection<Locale> supportedAnalyzeLocales = new ArrayList<Locale>();
 	private final Collection<Locale> supportedGuessLocales = new ArrayList<Locale>();
 	private final Collection<Locale> supportedHyphenationLocales = new ArrayList<Locale>();
 	protected final Collection<Locale> supportedInflectionLocales = new ArrayList<Locale>();
+	
+	protected List<String> getEditDistance(Locale l, String string, int distance) {
+		List<String> ret = new ArrayList<String>();
+		getEditDistance(l,ret,"",string,distance);
+		return ret;
+	}
+	
+	protected void getEditDistance(Locale l, List<String> ret, String prefix, String string, int distance) {
+		StringBuilder sb = new StringBuilder();
+		for (int i=string.length()-1;i>=0;i--) {
+			sb.setLength(0);
+			sb.append(prefix);
+			sb.append(string.substring(0,i));
+			if (distance>1)
+				getEditDistance(l,ret,sb.toString(),string.substring(i+1),distance-1);
+			else {
+				sb.append(string.substring(i+1));
+				ret.add(sb.toString());
+			}
+		}
+	}
 
 	public static class Result {
 
@@ -194,6 +216,22 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			log.error("Couldn't read locale information. Claiming to support no guessing languages");
 		}
 	}
+	
+	protected char[] getAlphabet(Locale l) {
+		char[] alphabet = alphabets.get(l);
+		if (alphabet!=null) return alphabet;
+		synchronized (this) {
+			alphabet = alphabets.get(l);
+			if (alphabet!=null) return alphabet;
+			List<String> ta = getTransducer(l, "analysis", analysisTransducers).getAlphabet();
+		    List<Character> taf = new ArrayList<Character>();
+			for (String t : ta) if (t.length()==1) taf.add(t.charAt(0));
+			alphabet = new char[taf.size()];
+			for (int i=0;i<alphabet.length;i++) alphabet[i]=taf.get(i);
+			alphabets.put(l,alphabet);
+			return alphabet;
+		}
+	}
 
 	protected Transducer getTransducer(Locale l, String type, Map<Locale, Transducer> s) {
 		Transducer t = s.get(l);
@@ -252,18 +290,18 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		final StringBuilder lemma = new StringBuilder();
 		WordPart w = null;
 		if (tr.getSymbols().get(0).startsWith("[")) { //[BOUNDARY=LEXITEM][LEMMA='san'][POS=NOUN][KTN=5][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='oma'][POS=ADJECTIVE][KTN=1%0][CMP=POS][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='lehti'][POS=NOUN][KTN=7][KAV=F][NUM=SG][CASE=PAR][ALLO=A][BOUNDARY=LEXITEM][CASECHANGE=NONE]
-			boolean parsingSegment = false;
+			String parsingPartialTag = null;
 			boolean parsingTag = false;
 			for (String s : tr.getSymbols()) {
 				if (s.length() == 0) continue;
 				if (s.charAt(0) == '[') {
 					if (s.length() == 1) {
-						parsingSegment = false;
+						parsingPartialTag = null;
 						parsingTag = true;
 					} else {
 						String[] tmp = s.split("=");
 						if ("[BOUNDARY".equals(tmp[0]) || "[WORD_ID".equals(tmp[0])) {
-							parsingSegment = false;
+							parsingPartialTag = null;
 							parsingTag = false;
 							if (w == null)
 								w = new WordPart();
@@ -272,25 +310,25 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 								w = new WordPart();
 							}
 							lemma.setLength(0);
-						} else if ("[SEGMENT".equals(tmp[0])) {
-							parsingSegment = true;
-							parsingTag = false;
-							lemma.setLength(0);
 						} else if (s.charAt(s.length() - 1) == ']') {
-							parsingSegment = false;
+							parsingPartialTag = null;
 							parsingTag = false;
 							if (w == null) w = new WordPart();
 							tmp=s.split("[=\\[\\]]");
 							for (int i=0;i<tmp.length;i+=3)
 								w.addTag(tmp[i+1], tmp[i+2]);									
+						} else {
+							parsingPartialTag = tmp[0];
+							parsingTag = false;
+							lemma.setLength(0);
+							if (tmp.length==2) lemma.append(tmp[1]);
 						}
 					}
 				} else if (s.charAt(s.length() - 1) == ']') {
-					if (parsingSegment) {
+					if (parsingPartialTag != null) {
 						if (w==null) w = new WordPart();
-						w.addTag("SEGMENT", lemma.toString());
-					}
-					else if (parsingTag) {
+						w.addTag(parsingPartialTag, lemma.toString());
+					} else if (parsingTag) {
 						if (s.equals("]"))
 							lemma.append('[');
 						else {
@@ -299,7 +337,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 						}
 					} else w.setLemma(lemma.toString());
 					lemma.setLength(0);
-					parsingSegment = false;
+					parsingPartialTag = null;
 					parsingTag = false;
 				} else lemma.append(s);
 			}
@@ -419,16 +457,27 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		return new RecognitionResult(recognized,unrecognized);
 	}
 
-	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean segments, boolean guessUnknown, boolean segmentUnknown) {
+	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean segmentBaseform, boolean guessUnknown, boolean segmentUnknown, int maxErrorCorrectDistance) {
 		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
 		String[] labels = LexicalAnalysisUtil.split(str);
 		List<WordToResults> ret = new ArrayList<WordToResults>(labels.length);
-		StringBuilder cur = new StringBuilder();
 		for (String label : labels)
 			if (!"".equals(label)) {
 				final List<Result> r = toResult(tc.analyze(label));
+				if (r.isEmpty() && maxErrorCorrectDistance>0) {
+					Transducer tc2 = segmentUnknown ? getTransducer(lang,"analysis-fuzzy-segment",fuzzySegmentTransducers) : getTransducer(lang,"analysis-fuzzy",fuzzyTransducers);
+					for (int j=1;j<=maxErrorCorrectDistance;j++) {
+						for (String c : getEditDistance(lang, label,j)) {
+							List<Transducer.Result> res2 = tc2.analyze(c);
+							for (Transducer.Result r2: res2)
+								if (r2.getWeight()<(j+1)*1000)
+									r.add(toResult(r2).addGlobalTag("EDIT_DISTANCE", ""+j));
+						}
+						if (!r.isEmpty()) break;
+					}
+				}
 				if (r.isEmpty() && guessUnknown && supportedGuessLocales.contains(lang) && label.length()>=4) { // Fixed cutoff, don't guess words shorter than 4 chars.
-					Transducer tc2 = segmentUnknown ? getTransducer(lang,"guess-segment",guessSegmentTransducers) : getTransducer(lang,"guess",guessTransducers);
+					Transducer tc2 = segmentUnknown ? getTransducer(lang,"analysis-guess-segment",guessSegmentTransducers) : getTransducer(lang,"analysis-guess",guessTransducers);
 					String reversedLabel = StringUtils.reverse(label);
 					List<Transducer.Result> analysis = Collections.EMPTY_LIST;
 					int length = reversedLabel.length();
@@ -439,7 +488,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 							Collections.reverse(tr.getSymbols());
 							if (!tr.getSymbols().get(0).startsWith("[")) tr.getSymbols().add(0,"[WORD_ID=");
 						}
-						ObjectIntOpenHashMap<Result> gres = new ObjectIntOpenHashMap<Result>();
+						ObjectIntHashMap<Result> gres = new ObjectIntHashMap<Result>();
 						outer: for (Result gr : toResult(analysis)) {
 							if (gr.getParts().isEmpty()) continue;
 							boolean empty = true;
@@ -505,10 +554,10 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 				}
 				for (Result res: bestResult)
 					res.addGlobalTag("BEST_MATCH", "TRUE");
-				if (segments)
+				if (segmentBaseform)
 					for (Result res : r)
 						for (WordPart wp : res.getParts()) {
-							List<WordToResults> analysis = analyze(wp.getLemma(), lang, Collections.EMPTY_LIST, false, guessUnknown, true);
+							List<WordToResults> analysis = analyze(wp.getLemma(), lang, Collections.EMPTY_LIST, false, guessUnknown, true,maxErrorCorrectDistance);
 							if (analysis.size()==0)
 								continue;
 							Result br = getBestResult(analysis.get(0));
@@ -572,9 +621,9 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	}
 
 	@Override
-	public String baseform(String string, Locale lang, boolean segments, boolean guessUnknown) {
+	public String baseform(String string, Locale lang, boolean segments, boolean guessUnknown, int maxErrorCorrectDistance) {
 		try {
-			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST, segments, guessUnknown, false);
+			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST, segments, guessUnknown, false, maxErrorCorrectDistance);
 			StringBuilder ret = new StringBuilder();
 			for (WordToResults cr : crc) {
 				ret.append(getBestLemma(cr, lang, segments));
@@ -631,9 +680,9 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	}
 
 	@Override
-	public String inflect(String string, List<String> inflections, boolean segments, boolean baseform, boolean guessUnknown, Locale lang) {
+	public String inflect(String string, List<String> inflections, boolean segments, boolean baseform, boolean guessUnknown, int maxErrorCorrectDistance, Locale lang) {
 		StringBuilder ret = new StringBuilder();
-		for (WordToResults part : analyze(string, lang, inflections, false, guessUnknown, false)) {
+		for (WordToResults part : analyze(string, lang, inflections, false, guessUnknown, false, maxErrorCorrectDistance)) {
 			String inflected = getBestInflection(part, lang, segments, baseform);
 			if (!inflected.isEmpty())
 				ret.append(inflected);
@@ -677,16 +726,32 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		return supportedInflectionLocales;
 	}
 	
+	protected static void print(List<WordToResults> res) {
+		for (WordToResults wtr : res)
+			for (Result r: wtr.getAnalysis())
+				System.out.println(wtr.getWord()+":"+r.getWeight()+"->"+r.getGlobalTags()+"/"+r.getParts());
+	}
+	
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
+//		System.out.println(hfst.analyze("tliittasin",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,0));
+//		System.out.println(hfst.analyze("tliittasin",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,1));
+		print(hfst.analyze("juoksettumise!sa",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
+		System.out.println(hfst.baseform("juoksettumise!sa", new Locale("fi"),false,false,0));
+		System.out.println(hfst.baseform("juoksettumise!sa", new Locale("fi"),false,false,1));
+		System.out.println(hfst.baseform("juoksettumise!sa", new Locale("fi"),false,false,1));
+		System.out.println(hfst.baseform("juoksettumise!sa", new Locale("fi"),false,false,2));
+		System.exit(0);
+		print(hfst.analyze("juoksettumise!sa",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,1));
+		print(hfst.analyze("sanomalehtzä",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,1));
+		print(hfst.analyze("sanomaleh!zä",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy dog", new Locale("mdf")));
-		System.out.println(hfst.analyze("tliittasin",new Locale("fi"),Collections.EMPTY_LIST,false,true,true));
-		System.out.println(hfst.analyze("tliikkasin",new Locale("fi"),Collections.EMPTY_LIST,false,true,true));
-		System.out.println(hfst.analyze("twiittasin",new Locale("fi"),Collections.EMPTY_LIST,false,true,true));
-		System.out.println(hfst.analyze("635",new Locale("fi"),Collections.EMPTY_LIST,true,true,true));
-		System.out.println(hfst.baseform("ulkoasiainministeriövaa'at soitti fagottia", new Locale("fi"),true,true));
-		System.out.println(hfst.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true,true,true));
-		System.out.println(hfst.baseform("635. 635 Helsingissä ulkoasiainministeriöstä vastaukset sanomalehdet varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true,true));
+		System.out.println(hfst.analyze("tliikkasin",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,0));
+		System.out.println(hfst.analyze("twiittasin",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,0));
+		System.out.println(hfst.analyze("635",new Locale("fi"),Collections.EMPTY_LIST,true,true,true,0));
+		System.out.println(hfst.baseform("ulkoasiainministeriövaa'at soitti fagottia", new Locale("fi"),true,true,0));
+		System.out.println(hfst.analyze("ulkoasiainministeriövaa'at 635. 635 sanomalehteä luin Suomessa", new Locale("fi"), Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true,true,true,0));
+		System.out.println(hfst.baseform("635. 635 Helsingissä ulkoasiainministeriöstä vastaukset sanomalehdet varusteet komentosillat tietokannat tulosteet kriisipuhelimet kuin hyllyt", new Locale("fi"),true,true,0));
 		System.out.println(hfst.hyphenate("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("sanomalehteä luin Suomessa", new Locale("fi")));
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("la")));
@@ -695,8 +760,8 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("en")));
 		System.out.println(hfst.recognize("The quick brown fox jumps over the lazy cat", new Locale("mrj")));		
 		System.out.println(hfst.recognize("Eorum una, pars, quam Gallos obtinere dictum est, initium capit a flumine Rhodano, continetur Garumna flumine, Oceano, finibus Belgarum, attingit etiam ab Sequanis et Helvetiis flumen Rhenum, vergit ad septentriones.", new Locale("la")));
-		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, true, true, new Locale("fi")));
-		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, false, false, new Locale("fi")));
+		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, true, true, 0, new Locale("fi")));
+		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, false, false, 0, new Locale("fi")));
 		//System.out.println(fdg.baseform("Otin 007 hiusta mukaan, mutta ne menivät kuuseen foobar!@£$£‰£@$ leileipä,. z.ajxc ha dsjf,mac ,mh ", new Locale("fi")));
 		//System.out.println(fdg.analyze("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));
 		//System.out.println(fdg.baseform("Joukahaisen mierolla kuin tiellä Lemminkäinen veti änkeröistä Antero Vipusta suunmukaisesti vartiotornissa dunkkuun, muttei saanut tätä tipahtamaan.", new Locale("fi")));

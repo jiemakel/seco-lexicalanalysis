@@ -18,7 +18,7 @@ public class ALexicalAnalysisService implements ILexicalAnalysisService {
 	}
 
 	@Override
-	public String baseform(String string, Locale lang, boolean segments, boolean guessUnknown) {
+	public String baseform(String string, Locale lang, boolean markSegments, boolean guessUnknown, int maxErrorCorrectDistance) {
 		throw new UnsupportedOperationException();	}
 
 	@Override
@@ -37,7 +37,7 @@ public class ALexicalAnalysisService implements ILexicalAnalysisService {
 
 	@Override
 	public String inflect(String string, List<String> inflections,
-			boolean segments, boolean baseform, boolean guessUnknown, Locale lang) {
+			boolean markSegments, boolean baseform, boolean guessUnknown, int maxErrorCorrectDistance, Locale lang) {
 		throw new UnsupportedOperationException();	}
 
 	@Override

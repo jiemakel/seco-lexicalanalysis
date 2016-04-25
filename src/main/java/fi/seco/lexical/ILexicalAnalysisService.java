@@ -9,7 +9,7 @@ public interface ILexicalAnalysisService {
 
 	public Collection<Locale> getSupportedSummarizeLocales();
 
-	public String baseform(String string, Locale lang, boolean segments, boolean guessUnknown);
+	public String baseform(String string, Locale lang, boolean markSegments, boolean guessUnknown, int maxErrorCorrectDistance);
 
 	public Collection<Locale> getSupportedBaseformLocales();
 
@@ -17,7 +17,7 @@ public interface ILexicalAnalysisService {
 
 	public Collection<Locale> getSupportedHyphenationLocales();
 
-	public String inflect(String string, List<String> inflections, boolean segments, boolean baseform, boolean guessUnknown, Locale lang);
+	public String inflect(String string, List<String> inflections, boolean markSegments, boolean baseform, boolean guessUnknown, int maxErrorCorrectDistance, Locale lang);
 
 	public Collection<Locale> getSupportedInflectionLocales();
 	
