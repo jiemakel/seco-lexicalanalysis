@@ -1,6 +1,7 @@
 package fi.seco.lexical;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -12,6 +13,8 @@ public class CompoundLexicalAnalysisService implements ILexicalAnalysisService {
 	private final Map<Locale, ILexicalAnalysisService> hfs = new HashMap<Locale, ILexicalAnalysisService>();
 	private final Map<Locale, ILexicalAnalysisService> ifs = new HashMap<Locale, ILexicalAnalysisService>();
 	private final Map<Locale, ILexicalAnalysisService> ss = new HashMap<Locale, ILexicalAnalysisService>();
+	private final Map<Locale, ILexicalAnalysisService> sps = new HashMap<Locale, ILexicalAnalysisService>();	
+	private final Map<Locale, ILexicalAnalysisService> ts = new HashMap<Locale, ILexicalAnalysisService>();	
 
 	public CompoundLexicalAnalysisService(ILexicalAnalysisService... services) {
 		for (ILexicalAnalysisService s : services) {
@@ -23,6 +26,10 @@ public class CompoundLexicalAnalysisService implements ILexicalAnalysisService {
 				if (!ifs.containsKey(l)) ifs.put(l, s);
 			for (Locale l : s.getSupportedHyphenationLocales())
 				if (!hfs.containsKey(l)) hfs.put(l, s);
+			for (Locale l : s.getSupportedSplitLocales())
+				if (!sps.containsKey(l)) sps.put(l, s);
+			for (Locale l : s.getSupportedTokenizationLocales())
+				if (!ts.containsKey(l)) ts.put(l, s);
 		}
 
 	}
@@ -85,6 +92,36 @@ public class CompoundLexicalAnalysisService implements ILexicalAnalysisService {
 	@Override
 	public Collection<Locale> getSupportedInflectionLocales() {
 		return ifs.keySet();
+	}
+	
+	@Override
+	public Collection<String> split(String string, Locale lang) {
+		if (sps.containsKey(lang)) return sps.get(lang).split(string, lang);
+		if (lang != null && !"".equals(lang.getCountry())) {
+			lang = new Locale(lang.getLanguage());
+			if (sps.containsKey(lang)) return sps.get(lang).split(string, lang);
+		}
+		return Collections.singleton(string);
+	}
+	
+	@Override
+	public Collection<Locale> getSupportedSplitLocales() {
+		return sps.keySet();
+	}
+
+	@Override
+	public Collection<String> tokenize(String string, Locale lang) {
+		if (ts.containsKey(lang)) return ts.get(lang).tokenize(string, lang);
+		if (lang != null && !"".equals(lang.getCountry())) {
+			lang = new Locale(lang.getLanguage());
+			if (ts.containsKey(lang)) return ts.get(lang).tokenize(string, lang);
+		}
+		return Collections.singleton(string);
+	}
+	
+	@Override
+	public Collection<Locale> getSupportedTokenizationLocales() {
+		return ts.keySet();
 	}
 
 }

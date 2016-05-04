@@ -21,4 +21,12 @@ public interface ILexicalAnalysisService {
 
 	public Collection<Locale> getSupportedInflectionLocales();
 	
+	public Collection<Locale> getSupportedSplitLocales();
+	
+	public Collection<String> split(String text, Locale lang);
+	
+	public Collection<Locale> getSupportedTokenizationLocales();
+	
+	public Collection<String> tokenize(String text, Locale lang);
+	
 }

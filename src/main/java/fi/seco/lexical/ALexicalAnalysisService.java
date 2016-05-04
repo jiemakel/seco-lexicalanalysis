@@ -45,4 +45,23 @@ public class ALexicalAnalysisService implements ILexicalAnalysisService {
 		return Collections.emptyList();
 	}
 
+	@Override
+	public Collection<String> split(String string, Locale lang) {
+		return LexicalAnalysisUtil.split(string);
+	}
+
+	@Override
+	public Collection<Locale> getSupportedSplitLocales() {
+		return Collections.emptyList();
+	}
+	
+	@Override
+	public Collection<String> tokenize(String string, Locale lang) {
+		return LexicalAnalysisUtil.tokenize(string);	
+	}
+
+	@Override
+	public Collection<Locale> getSupportedTokenizationLocales() {
+		return Collections.emptyList();
+	}
 }

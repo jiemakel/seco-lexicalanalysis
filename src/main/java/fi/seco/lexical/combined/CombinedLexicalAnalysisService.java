@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,6 +27,7 @@ import com.carrotsearch.hppc.ObjectIntHashMap;
 import com.carrotsearch.hppc.procedures.ObjectIntProcedure;
 
 import fi.seco.hfst.Transducer;
+import fi.seco.lexical.LexicalAnalysisUtil;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 import is2.data.Cluster;
@@ -541,8 +543,8 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	}
 
 	@Override
-	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean segments, boolean guessUnknown, boolean segmentUnknown, int maxEditDistance) {
-		return analyze(str, lang, inflections, segments, guessUnknown, segmentUnknown, maxEditDistance, 2);
+	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean segmentBaseform, boolean guessUnknown, boolean segmentUnknown, int maxEditDistance) {
+		return analyze(str, lang, inflections, segmentBaseform, guessUnknown, segmentUnknown, maxEditDistance, 2);
 	}
 
 	@Override
@@ -574,16 +576,37 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 			}
 		return new RecognitionResult(recognized,unrecognized);
 	}
+	
+	public Collection<String> split(String str, Locale lang) {
+		if (!supportedLocales.contains(lang)) return super.split(str,lang);
+		return Arrays.asList(getSentenceDetector(lang).sentDetect(str));
+	}
+	
+	@Override
+	public Collection<Locale> getSupportedSplitLocales() {
+		return supportedLocales;
+	}
 
+	public Collection<String> tokenize(String str, Locale lang) {
+		if (!supportedLocales.contains(lang)) return super.tokenize(str,lang);
+		return Arrays.asList(getTokenizer(lang).tokenize(str));
+	}
+
+	@Override
+	public Collection<Locale> getSupportedTokenizationLocales() {
+		return supportedLocales;
+	}
+	
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
+		print(las.analyze("Tulemana Lauwantaina j. p. ulosannetaan N:o 47.\n\nO U L US A. Präntätty Barckin tykönä.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
+		System.exit(0);
 		System.out.println(las.baseform("Ter>vo-»uainajan",new Locale("fi"),false,true,2));
 		System.out.println(las.baseform("Ter>vo-»uainaj»n",new Locale("fi"),false,true,2));
 		System.out.println(las.baseform("juoksettumise!sa", new Locale("fi"),false,false,0));
 		System.out.println(las.baseform("juoksettumise!sa", new Locale("fi"),false,false,1));
 		System.out.println(las.baseform("juoksettumise!sa", new Locale("fi"),false,false,1));
 		System.out.println(las.baseform("juoksettumise!sa", new Locale("fi"),false,false,2));
-		System.exit(0);
 		System.out.println(las.baseform("niiden",new Locale("fi"),false,true,0));
 		print(las.analyze("niiden kuin", new Locale("fi"),Collections.EMPTY_LIST,false,true,false,2));
 		print(las.analyze("spårassa", new Locale("fi"),Collections.EMPTY_LIST,false,true,false,2));

@@ -445,7 +445,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
 		int recognized = 0;
 		int unrecognized = 0;
-		String[] labels = LexicalAnalysisUtil.split(str);
+		Collection<String> labels = tokenize(str, lang);
 		outer: for (String label : labels) {
 			for (Transducer.Result tr : tc.analyze(label))
 				if (!tr.getSymbols().isEmpty()) {
@@ -459,8 +459,8 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean segmentBaseform, boolean guessUnknown, boolean segmentUnknown, int maxErrorCorrectDistance) {
 		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
-		String[] labels = LexicalAnalysisUtil.split(str);
-		List<WordToResults> ret = new ArrayList<WordToResults>(labels.length);
+		Collection<String> labels = tokenize(str,lang);
+		List<WordToResults> ret = new ArrayList<WordToResults>(labels.size());
 		for (String label : labels)
 			if (!"".equals(label)) {
 				final List<Result> r = toResult(tc.analyze(label));
@@ -658,7 +658,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	@Override
 	public String hyphenate(String string, Locale lang) {
 		Transducer tc = getTransducer(lang, "hyphenation", hyphenationTransducers);
-		String[] labels = LexicalAnalysisUtil.split(string);
+		Collection<String> labels = tokenize(string, lang);
 		StringBuilder ret = new StringBuilder();
 		for (String label : labels)
 			if (!"".equals(label)) {
