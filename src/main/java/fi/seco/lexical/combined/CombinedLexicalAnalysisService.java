@@ -24,6 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.carrotsearch.hppc.ObjectIntHashMap;
+import com.carrotsearch.hppc.ObjectLongHashMap;
+import com.carrotsearch.hppc.ObjectLongMap;
 import com.carrotsearch.hppc.procedures.ObjectIntProcedure;
 
 import fi.seco.hfst.Transducer;
@@ -58,6 +60,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 
 	private final Map<Locale, SentenceModel> sdMap = new HashMap<Locale, SentenceModel>();
 	private final Map<Locale, TokenizerModel> tMap = new HashMap<Locale, TokenizerModel>();
+	private final Map<Locale, ObjectLongMap<String>> fMap = new HashMap<Locale, ObjectLongMap<String>>();
 
 	private final Set<Locale> supportedLocales = new HashSet<Locale>();
 
@@ -88,6 +91,30 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				modelIn.close();
 			} catch (IOException e) {}
 		}
+	}
+	
+	private ObjectLongMap<String> getFrequencyMap(Locale lang) {
+		ObjectLongMap<String> f = fMap.get(lang);
+		if (f != null) return f;
+		f = new ObjectLongHashMap<String>();		
+		BufferedReader ff = new BufferedReader(new InputStreamReader(CombinedLexicalAnalysisService.class.getResourceAsStream(lang + "-lemma-frequencies.txt")));
+		try {
+		while (true) {
+			
+			String line = ff.readLine();
+			if (line==null) break;
+			String[] parts = line.split(" ");
+			f.put(parts[1],Long.parseLong(parts[0]));
+		}
+		fMap.put(lang,f);
+		} catch (IOException e) {
+			throw new IOError(e);
+		} finally {
+			try {
+				ff.close();
+			} catch (IOException e) {}
+		}
+		return f;
 	}
 
 	private Tokenizer getTokenizer(Locale lang) {
@@ -483,58 +510,73 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				List<Result> bestResult = new ArrayList<Result>();
 				boolean POS_MATCH = false;
 				float cw = Float.MAX_VALUE;
+				ObjectLongMap<String> fMap = getFrequencyMap(lang);
 				int guessCount = 0;
-				for (Result res : wtr.getAnalysis())
+				long frequency = 0;
+				for (Result res : wtr.getAnalysis()) {
+					StringBuilder lemma = new StringBuilder();
+					for (WordPart p : res.getParts()) {
+						if (fMap.containsKey(p.getLemma())) p.addTag("BASEFORM_FREQUENCY", ""+fMap.get(p.getLemma()));
+						lemma.append(p.getLemma());
+					}
+					int ngc = 0;
+					List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
+					if (gc!=null) ngc=Integer.parseInt(gc.get(0));
+					long myFrequency = fMap.getOrDefault(lemma.toString(), 0);
+					if (myFrequency!=0) res.addGlobalTag("BASEFORM_FREQUENCY", ""+myFrequency);
 					if (POS_MATCH) {
 						if (res.getGlobalTags().containsKey("POS_MATCH")) {
 							if (res.getWeight() < cw) {
-								int ngc = 0;
-								List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
-								if (gc!=null) ngc=Integer.parseInt(gc.get(0));
 								bestResult.clear();
 								bestResult.add(res);
 								cw = res.getWeight();
 								guessCount=ngc;
+								frequency = myFrequency;
 							} else if (res.getWeight() == cw) {
-								int ngc = 0;
-								List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
-								if (gc!=null) ngc=Integer.parseInt(gc.get(0));
-								if (ngc>guessCount) {
-									guessCount=ngc;
+								if (myFrequency>frequency) {
 									bestResult.clear();
-								}
-								if (ngc==guessCount)
 									bestResult.add(res);
+									guessCount=ngc;
+									frequency = myFrequency;
+								} else if (myFrequency==frequency) {
+									if (ngc>guessCount) {
+										guessCount=ngc;
+										bestResult.clear();
+									}
+									if (ngc==guessCount)
+										bestResult.add(res);									
+								}
 							}
 						}
 					} else if (res.getGlobalTags().containsKey("POS_MATCH")) {
-						List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
-						int ngc = 0;
-						if (gc!=null) ngc=Integer.parseInt(gc.get(0));
 						POS_MATCH = true;
 						bestResult.clear();
 						bestResult.add(res);
 						cw = res.getWeight();
 						guessCount=ngc;
+						frequency = myFrequency;
 					} else if (res.getWeight() < cw) {
-						int ngc = 0;
-						List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
-						if (gc!=null) ngc=Integer.parseInt(gc.get(0));
 						bestResult.clear();
 						bestResult.add(res);
 						cw = res.getWeight();
 						guessCount=ngc;
+						frequency = myFrequency;
 					} else if (res.getWeight() == cw) {
-						int ngc = 0;
-						List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
-						if (gc!=null) ngc=Integer.parseInt(gc.get(0));
-						if (ngc>guessCount) {
-							guessCount=ngc;
+						if (myFrequency>frequency) {
 							bestResult.clear();
-						}
-						if (ngc==guessCount)
 							bestResult.add(res);
+							guessCount=ngc;
+							frequency = myFrequency;
+						} else if (myFrequency==frequency) {
+							if (ngc>guessCount) {
+								guessCount=ngc;
+								bestResult.clear();
+							}
+							if (ngc==guessCount)
+								bestResult.add(res);									
+						}
 					}
+				}
 				for (Result res : bestResult)
 					res.addGlobalTag("BEST_MATCH", "TRUE");
 			}
@@ -599,6 +641,8 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
+		print(las.analyze("Helsingissä", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
+		System.out.println(las.baseform("Turussa ja Helsingissä on kuin onkin aivoja",new Locale("fi"),false,true,2));
 		print(las.analyze("Tulemana Lauwantaina j. p. ulosannetaan N:o 47.\n\nO U L US A. Präntätty Barckin tykönä.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.exit(0);
 		System.out.println(las.baseform("Ter>vo-»uainajan",new Locale("fi"),false,true,2));
