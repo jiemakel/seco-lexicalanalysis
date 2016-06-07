@@ -26,9 +26,6 @@ import fi.seco.hfst.TransducerHeader;
 import fi.seco.hfst.UnweightedTransducer;
 import fi.seco.hfst.WeightedTransducer;
 import fi.seco.lexical.ALexicalAnalysisService;
-import fi.seco.lexical.LexicalAnalysisUtil;
-import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result;
-import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.WordToResults;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 import marmot.util.StringUtils;
 
@@ -47,6 +44,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	private final Collection<Locale> supportedAnalyzeLocales = new ArrayList<Locale>();
 	private final Collection<Locale> supportedGuessLocales = new ArrayList<Locale>();
 	private final Collection<Locale> supportedHyphenationLocales = new ArrayList<Locale>();
+	private final Collection<Locale> supportedFuzzyLocales = new ArrayList<Locale>();
 	protected final Collection<Locale> supportedInflectionLocales = new ArrayList<Locale>();
 	
 	protected List<String> getEditDistance(Locale l, String string, int distance) {
@@ -214,6 +212,15 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			r.close();
 		} catch (IOException e) {
 			log.error("Couldn't read locale information. Claiming to support no guessing languages");
+		}
+		try {
+			BufferedReader r = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream("fuzzy-locales")));
+			String line;
+			while ((line = r.readLine()) != null)
+				supportedFuzzyLocales.add(new Locale(line));
+			r.close();
+		} catch (IOException e) {
+			log.error("Couldn't read locale information. Claiming to support no fuzzy languages");
 		}
 	}
 	
@@ -464,7 +471,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		for (String label : labels)
 			if (!"".equals(label)) {
 				final List<Result> r = toResult(tc.analyze(label));
-				if (r.isEmpty() && maxErrorCorrectDistance>0) {
+				if (r.isEmpty() && maxErrorCorrectDistance>0 && supportedFuzzyLocales.contains(lang) ) {
 					Transducer tc2 = segmentUnknown ? getTransducer(lang,"analysis-fuzzy-segment",fuzzySegmentTransducers) : getTransducer(lang,"analysis-fuzzy",fuzzyTransducers);
 					for (int j=1;j<=maxErrorCorrectDistance;j++) {
 						for (String c : getEditDistance(lang, label,j)) {

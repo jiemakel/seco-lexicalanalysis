@@ -7,8 +7,8 @@ import java.util.regex.Pattern;
 
 public class LexicalAnalysisUtil {
 
-	private final static Pattern sp = Pattern.compile("\\p{P}*(^|\\p{Z}+|$)\\p{P}*");
-	private final static Pattern dp = Pattern.compile("([^\\p{C}\\p{P}\\p{Z}\\p{S}]+)");
+	private final static Pattern sp = Pattern.compile("\\p{P}*(^|\\s+|$)\\p{P}*");
+	private final static Pattern dp = Pattern.compile("([^\\p{C}\\p{P}\\s\\p{S}]+)");
 	
 	private final static Pattern sentenceSplit = Pattern.compile("(?<=[.?!;])\\s+(?=\\p{Lu})");
 
