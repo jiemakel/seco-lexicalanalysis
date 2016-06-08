@@ -282,11 +282,13 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		if (!supportedLocales.contains(lang)) return super.analyze(str, lang, inflections, baseformSegments, guessUnknown, segmentUnknown, maxErrorCorrectDistance);
 		Tokenizer t = getTokenizer(lang);
 		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
-		int i = 0;
+		int startOfSentenceInResults = 0;
 		List<WordToResults> ret = new ArrayList<WordToResults>();
 		for (String sentence : getSentenceDetector(lang).sentDetect(str)) {
+			int wordInSentence = 0;
 			for (String word : t.tokenize(sentence)) {
 				final List<Result> r = toResult(tc.analyze(word));
+				if (wordInSentence++==0) for (Result res : r) res.addGlobalTag("FIRST_IN_SENTENCE", "TRUE");
 				if (r.isEmpty() && maxErrorCorrectDistance>0) {
 					Transducer tc2 = segmentUnknown ? getTransducer(lang,"analysis-fuzzy-segment",fuzzySegmentTransducers) : getTransducer(lang,"analysis-fuzzy",fuzzyTransducers);
 					for (int j=1;j<=maxErrorCorrectDistance;j++) {
@@ -405,11 +407,11 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				}
 				ret.add(new WordToResults(word, r));
 			}
-			if (fi.equals(lang) && ret.size() - i <= 120 && depth > 0) { // NOTE!: hard cutoff for sentence length
-				List<Word> tokens = new ArrayList<Word>(ret.size() - i);
-				int j = i;
-				while (i < ret.size()) {
-					WordToResults wtr = ret.get(i++);
+			if (fi.equals(lang) && ret.size() - startOfSentenceInResults <= 120 && depth > 0) { // NOTE!: hard cutoff for sentence length
+				List<Word> tokens = new ArrayList<Word>(ret.size() - startOfSentenceInResults);
+				int j = startOfSentenceInResults;
+				while (startOfSentenceInResults < ret.size()) {
+					WordToResults wtr = ret.get(startOfSentenceInResults++);
 					Set<String> tf = new HashSet<String>();
 					for (Result r : wtr.getAnalysis()) {
 						List<String> aPOS = r.getParts().isEmpty() ? null : r.getParts().get(r.getParts().size() - 1).getTags().get("UPOS");
@@ -426,9 +428,9 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				synchronized (fitag) {
 					tags = fitag.tag(new Sentence(tokens));
 				}
-				i = j;
+				startOfSentenceInResults = j;
 				for (int k = 0; k < tags.size(); k++) {
-					WordToResults wtr = ret.get(i++);
+					WordToResults wtr = ret.get(startOfSentenceInResults++);
 					for (Result r : wtr.getAnalysis()) {
 						if (!r.getParts().isEmpty()) {
 							if (r.getParts().size()==1 && (// Dirty hacks
@@ -450,7 +452,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					}
 				}
 				if (depth > 1) {
-					i = j;
+					startOfSentenceInResults = j;
 					SentenceData09 sd = new SentenceData09();
 					String[] forms = new String[tokens.size() + 1];
 					forms[0] = IOGenerals.ROOT;
@@ -461,7 +463,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					String[] feats = new String[forms.length];
 					feats[0] = IOGenerals.EMPTY_FEAT;
 					for (int k = 1; k < forms.length; k++) {
-						WordToResults wtr = ret.get(i++);
+						WordToResults wtr = ret.get(startOfSentenceInResults++);
 						List<String> ctags = tags.get(k - 1);
 						forms[k] = wtr.getWord();
 						lemmas[k] = wtr.getWord();
@@ -494,9 +496,9 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					synchronized (fiparser) {
 						out = fiparser.parse(sd, fiparser.params, false, fiparser.options);
 					}
-					i = j;
+					startOfSentenceInResults = j;
 					for (int k = 0; k < out.forms.length; k++) {
-						WordToResults wtr = ret.get(i++);
+						WordToResults wtr = ret.get(startOfSentenceInResults++);
 						for (Result r : wtr.getAnalysis())
 							if (r.getGlobalTags().containsKey("POS_MATCH")) {
 								r.addGlobalTag("HEAD", "" + (j + out.pheads[k]));
@@ -509,6 +511,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 			for (WordToResults wtr : ret) {
 				List<Result> bestResult = new ArrayList<Result>();
 				boolean POS_MATCH = false;
+				boolean FIRST_LETTER_MATCH = false;
 				float cw = Float.MAX_VALUE;
 				ObjectLongMap<String> fMap = getFrequencyMap(lang);
 				int guessCount = 0;
@@ -532,19 +535,23 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 								cw = res.getWeight();
 								guessCount=ngc;
 								frequency = myFrequency;
+								FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
 							} else if (res.getWeight() == cw) {
-								if (myFrequency>frequency) {
-									bestResult.clear();
-									bestResult.add(res);
-									guessCount=ngc;
-									frequency = myFrequency;
-								} else if (myFrequency==frequency) {
-									if (ngc>guessCount) {
-										guessCount=ngc;
+								if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
+									if (myFrequency>frequency) {
 										bestResult.clear();
+										bestResult.add(res);
+										guessCount=ngc;
+										frequency = myFrequency;
+										FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+									} else if (myFrequency==frequency) {
+										if (ngc>guessCount) {
+											guessCount=ngc;
+											bestResult.clear();
+										}
+										if (ngc==guessCount)
+											bestResult.add(res);
 									}
-									if (ngc==guessCount)
-										bestResult.add(res);									
 								}
 							}
 						}
@@ -555,25 +562,30 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 						cw = res.getWeight();
 						guessCount=ngc;
 						frequency = myFrequency;
+						FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
 					} else if (res.getWeight() < cw) {
 						bestResult.clear();
 						bestResult.add(res);
 						cw = res.getWeight();
 						guessCount=ngc;
 						frequency = myFrequency;
+						FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
 					} else if (res.getWeight() == cw) {
-						if (myFrequency>frequency) {
-							bestResult.clear();
-							bestResult.add(res);
-							guessCount=ngc;
-							frequency = myFrequency;
-						} else if (myFrequency==frequency) {
-							if (ngc>guessCount) {
-								guessCount=ngc;
+						if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
+							if (myFrequency>frequency) {
 								bestResult.clear();
+								bestResult.add(res);
+								guessCount=ngc;
+								frequency = myFrequency;
+								FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+							} else if (myFrequency==frequency) {
+								if (ngc>guessCount) {
+									guessCount=ngc;
+									bestResult.clear();
+								}
+								if (ngc==guessCount)
+									bestResult.add(res);
 							}
-							if (ngc==guessCount)
-								bestResult.add(res);									
 						}
 					}
 				}
@@ -641,10 +653,11 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
+		System.out.println(las.baseform("Pariisi", new Locale("fi"), false, true, 2));
+		System.out.println(las.baseform("sup Pariisi", new Locale("fi"), false, true, 2));
+		print(las.analyze("Helsingissä oli kylmää. Juoksin pitkään.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		for (Locale l :las.getSupportedBaseformLocales()) 
 			System.out.println(l+": "+las.baseform("Turussa ja Helsingissä\n\n on kuin onkin aivoja",l,false,true,2));
-		System.exit(0);
-		print(las.analyze("Helsingissä", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		print(las.analyze("Tulemana Lauwantaina j. p. ulosannetaan N:o 47.\n\nO U L US A. Präntätty Barckin tykönä.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.out.println(las.baseform("Ter>vo-»uainajan",new Locale("fi"),false,true,2));
 		System.out.println(las.baseform("Ter>vo-»uainaj»n",new Locale("fi"),false,true,2));
