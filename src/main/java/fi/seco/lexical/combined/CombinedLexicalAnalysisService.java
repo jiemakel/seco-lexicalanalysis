@@ -527,17 +527,17 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					if (gc!=null) ngc=Integer.parseInt(gc.get(0));
 					long myFrequency = fMap.getOrDefault(lemma.toString(), 0);
 					if (myFrequency!=0) res.addGlobalTag("BASEFORM_FREQUENCY", ""+myFrequency);
-					if (POS_MATCH) {
-						if (res.getGlobalTags().containsKey("POS_MATCH")) {
-							if (res.getWeight() < cw) {
-								bestResult.clear();
-								bestResult.add(res);
-								cw = res.getWeight();
-								guessCount=ngc;
-								frequency = myFrequency;
-								FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-							} else if (res.getWeight() == cw) {
-								if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
+					if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
+						if (POS_MATCH) {
+							if (res.getGlobalTags().containsKey("POS_MATCH")) {
+								if (res.getWeight() < cw) {
+									bestResult.clear();
+									bestResult.add(res);
+									cw = res.getWeight();
+									guessCount=ngc;
+									frequency = myFrequency;
+									FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+								} else if (res.getWeight() == cw) {
 									if (myFrequency>frequency) {
 										bestResult.clear();
 										bestResult.add(res);
@@ -554,24 +554,22 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 									}
 								}
 							}
-						}
-					} else if (res.getGlobalTags().containsKey("POS_MATCH")) {
-						POS_MATCH = true;
-						bestResult.clear();
-						bestResult.add(res);
-						cw = res.getWeight();
-						guessCount=ngc;
-						frequency = myFrequency;
-						FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-					} else if (res.getWeight() < cw) {
-						bestResult.clear();
-						bestResult.add(res);
-						cw = res.getWeight();
-						guessCount=ngc;
-						frequency = myFrequency;
-						FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-					} else if (res.getWeight() == cw) {
-						if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
+						} else if (res.getGlobalTags().containsKey("POS_MATCH")) {
+							POS_MATCH = true;
+							bestResult.clear();
+							bestResult.add(res);
+							cw = res.getWeight();
+							guessCount=ngc;
+							frequency = myFrequency;
+							FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+						} else if (res.getWeight() < cw) {
+							bestResult.clear();
+							bestResult.add(res);
+							cw = res.getWeight();
+							guessCount=ngc;
+							frequency = myFrequency;
+							FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+						} else if (res.getWeight() == cw) {
 							if (myFrequency>frequency) {
 								bestResult.clear();
 								bestResult.add(res);
@@ -655,10 +653,12 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
 		System.out.println(las.baseform("Pariisi", new Locale("fi"), false, true, 2));
 		System.out.println(las.baseform("sup Pariisi", new Locale("fi"), false, true, 2));
-		print(las.analyze("Helsingissä oli kylmää. Juoksin pitkään.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
+		System.out.println(las.baseform("oli Pariisi", new Locale("fi"), false, true, 2));
+		System.out.println(las.baseform("Tulemana Lauwantaina j. p. ulosannetaan N:o 47.\n\nO U L US A. Präntätty Barckin tykönä.", new Locale("fi"),false,true,2));
 		for (Locale l :las.getSupportedBaseformLocales()) 
 			System.out.println(l+": "+las.baseform("Turussa ja Helsingissä\n\n on kuin onkin aivoja",l,false,true,2));
-		print(las.analyze("Tulemana Lauwantaina j. p. ulosannetaan N:o 47.\n\nO U L US A. Präntätty Barckin tykönä.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
+		System.exit(0);
+		print(las.analyze("Helsingissä oli kylmää. Juoksin pitkään.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.out.println(las.baseform("Ter>vo-»uainajan",new Locale("fi"),false,true,2));
 		System.out.println(las.baseform("Ter>vo-»uainaj»n",new Locale("fi"),false,true,2));
 		System.out.println(las.baseform("juoksettumise!sa", new Locale("fi"),false,false,0));
