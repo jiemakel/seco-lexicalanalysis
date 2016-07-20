@@ -613,6 +613,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	}
 	
 	public RecognitionResult recognize(String str, Locale lang) {
+                if (!supportedLocales.contains(lang)) return super.recognize(str, lang);
 		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
 		Tokenizer t = getTokenizer(lang);
 		int recognized = 0;
@@ -651,15 +652,17 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
+		System.out.println(las.baseform("twiittasi", new Locale("fi"), false, false,0));
+		System.out.println(las.baseform("twiittasi", new Locale("fi"), true, true,0));
+		System.out.println(las.baseform("Leh>tim»ehen",new Locale("fi"),false,true,2));
+		System.exit(0);
 		System.out.println(las.baseform("Pariisi", new Locale("fi"), false, true, 2));
 		System.out.println(las.baseform("sup Pariisi", new Locale("fi"), false, true, 2));
 		System.out.println(las.baseform("oli Pariisi", new Locale("fi"), false, true, 2));
 		System.out.println(las.baseform("Tulemana Lauwantaina j. p. ulosannetaan N:o 47.\n\nO U L US A. Präntätty Barckin tykönä.", new Locale("fi"),false,true,2));
 		for (Locale l :las.getSupportedBaseformLocales()) 
 			System.out.println(l+": "+las.baseform("Turussa ja Helsingissä\n\n on kuin onkin aivoja",l,false,true,2));
-		System.exit(0);
 		print(las.analyze("Helsingissä oli kylmää. Juoksin pitkään.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
-		System.out.println(las.baseform("Ter>vo-»uainajan",new Locale("fi"),false,true,2));
 		System.out.println(las.baseform("Ter>vo-»uainaj»n",new Locale("fi"),false,true,2));
 		System.out.println(las.baseform("juoksettumise!sa", new Locale("fi"),false,false,0));
 		System.out.println(las.baseform("juoksettumise!sa", new Locale("fi"),false,false,1));

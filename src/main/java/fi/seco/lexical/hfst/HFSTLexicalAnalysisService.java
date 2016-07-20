@@ -47,6 +47,8 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	private final Collection<Locale> supportedFuzzyLocales = new ArrayList<Locale>();
 	protected final Collection<Locale> supportedInflectionLocales = new ArrayList<Locale>();
 	
+	private final Map<Locale, String[]> inflectionTags = new HashMap<Locale, String[]>();
+	
 	protected List<String> getEditDistance(Locale l, String string, int distance) {
 		List<String> ret = new ArrayList<String>();
 		getEditDistance(l,ret,"",string,distance);
@@ -189,8 +191,11 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		try {
 			BufferedReader r = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream("inflection-locales")));
 			String line;
-			while ((line = r.readLine()) != null)
-				supportedInflectionLocales.add(new Locale(line));
+			while ((line = r.readLine()) != null) {
+				String[] parts = line.split(":",-1);
+				supportedInflectionLocales.add(new Locale(parts[0]));
+				inflectionTags.put(new Locale(parts[0]), new String[] {parts[1], parts[2], parts[3]});
+			}
 			r.close();
 		} catch (IOException e) {
 			log.error("Couldn't read locale information. Claiming to support no inflection languages");
@@ -580,12 +585,13 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 						}
 				if (!inflections.isEmpty() && supportedInflectionLocales.contains(lang)) {
 					Transducer tic = getTransducer(lang, "inflection", inflectionTransducers);
+					String[] tagdelims = inflectionTags.get(lang);
 					for (Result res : r)
 						for (WordPart wp : res.getParts()) {
 							List<String> inflectedC = new ArrayList<String>();
 							List<String> inflectedFormC = new ArrayList<String>();
 							for (String inflection : inflections) {
-								String inflected = firstToString(tic.analyze(wp.getLemma() + " " + inflection));
+								String inflected = firstToString(tic.analyze(wp.getLemma() + tagdelims[0] + inflection.replace(" ",tagdelims[2]+tagdelims[1])+ tagdelims[2]));
 								if (!inflected.isEmpty()) {
 									inflectedC.add(inflected);
 									inflectedFormC.add(inflection);
@@ -741,14 +747,16 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	
 	public static void main(String[] args) throws Exception {
 		final HFSTLexicalAnalysisService hfst = new HFSTLexicalAnalysisService();
-//		System.out.println(hfst.analyze("tliittasin",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,0));
+		System.out.println(hfst.inflect("sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), true, true, true, 0, new Locale("fi")));
+		System.out.println(hfst.inflect("maatiaiskanan sanomalehteä luin Suomessa kolmannen valtakunnan punaisella Porvoon asemalla", Arrays.asList(new String[] { "V N Nom Sg", "A Pos Nom Pl", "Num Nom Pl", " N Prop Nom Sg", "N Nom Pl" }), false, false, false, 0, new Locale("fi")));
+		System.exit(0);
+		//		System.out.println(hfst.analyze("tliittasin",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,0));
 //		System.out.println(hfst.analyze("tliittasin",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,1));
 		print(hfst.analyze("juoksettumise!sa",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.out.println(hfst.baseform("juoksettumise!sa", new Locale("fi"),false,false,0));
 		System.out.println(hfst.baseform("juoksettumise!sa", new Locale("fi"),false,false,1));
 		System.out.println(hfst.baseform("juoksettumise!sa", new Locale("fi"),false,false,1));
 		System.out.println(hfst.baseform("juoksettumise!sa", new Locale("fi"),false,false,2));
-		System.exit(0);
 		print(hfst.analyze("juoksettumise!sa",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,1));
 		print(hfst.analyze("sanomalehtzä",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,1));
 		print(hfst.analyze("sanomaleh!zä",new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
