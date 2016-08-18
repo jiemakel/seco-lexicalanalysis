@@ -18,57 +18,57 @@
 					<target>1.7</target>
 				</configuration>
 			</plugin>
-						<plugin>
-								      <groupId>org.sonatype.plugins</groupId>
-								      	      <artifactId>nexus-staging-maven-plugin</artifactId>
-									      	      <version>1.6.3</version>
-										      	      <extensions>true</extensions>
-											      	      <configuration>
-													      	        <serverId>ossrh</serverId>
-																        <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-																		        <autoReleaseAfterClose>true</autoReleaseAfterClose>
-																				      </configuration>
-																				          	</plugin>
-																									<plugin>
-																											       <groupId>org.apache.maven.plugins</groupId>
-																											       	       <artifactId>maven-source-plugin</artifactId>
-																												       	       <version>2.2.1</version>
-																													       	       <executions>
-																															       	         <execution>
-																																		 	           <id>attach-sources</id>
-																																				   	           <goals>
-																																							   	             <goal>jar-no-fork</goal>
-																																									     	           </goals>
-																																											   	         </execution>
-																																													 	       </executions>
-																																														       	     </plugin>
-																																															     	     <plugin>
-																																																	     	       <groupId>org.apache.maven.plugins</groupId>
-																																																		       	       <artifactId>maven-javadoc-plugin</artifactId>
-																																																			       	       <version>2.9.1</version>
-																																																				       	       <executions>
-																																																						       	         <execution>
-																																																									 	           <id>attach-javadocs</id>
-																																																											   	           <goals>
-																																																														   	             <goal>jar</goal>
-																																																																     	           </goals>
-																																																																		   	         </execution>
-																																																																				 	       </executions>
-																																																																					       	     </plugin>
-																																																																						     			 <plugin>
-																																																																										 		      <groupId>org.apache.maven.plugins</groupId>
-																																																																												      		      <artifactId>maven-gpg-plugin</artifactId>
-																																																																														      		      <version>1.5</version>
-																																																																																      		      <executions>
-																																																																																			      		        <execution>
-																																																																																									          <id>sign-artifacts</id>
-																																																																																										  		          <phase>verify</phase>
-																																																																																													  		          <goals>
-																																																																																																	  		            <goal>sign</goal>
-																																																																																																				    		          </goals>
-																																																																																																							  		        </execution>
-																																																																																																												      </executions>
-																																																																																																												      		    </plugin>
+			<plugin>
+				<groupId>org.sonatype.plugins</groupId>
+				<artifactId>nexus-staging-maven-plugin</artifactId>
+				<version>1.6.3</version>
+				<extensions>true</extensions>
+				<configuration>
+					<serverId>ossrh</serverId>
+					<nexusUrl>https://oss.sonatype.org/</nexusUrl>
+					<autoReleaseAfterClose>true</autoReleaseAfterClose>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>2.2.1</version>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<goals>
+							<goal>jar-no-fork</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>2.9.1</version>
+				<executions>
+					<execution>
+						<id>attach-javadocs</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-gpg-plugin</artifactId>
+				<version>1.5</version>
+				<executions>
+					<execution>
+						<id>sign-artifacts</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>sign</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 	<dependencies>
@@ -83,9 +83,9 @@
 			<version>3.6</version>
 		</dependency>
 		<dependency>
-  			<groupId>org.apache.opennlp</groupId>
-  			<artifactId>opennlp-tools</artifactId>
-  			<version>1.5.3</version>
+			<groupId>org.apache.opennlp</groupId>
+			<artifactId>opennlp-tools</artifactId>
+			<version>1.5.3</version>
 		</dependency>
 		<dependency>
 			<groupId>com.dyuproject.protostuff</groupId>
@@ -102,11 +102,11 @@
 			<artifactId>hfst</artifactId>
 			<version>1.1.5</version>
 		</dependency>
-        <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
-                <version>1.7.7</version>
-        </dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>1.7.7</version>
+		</dependency>
 	</dependencies>
 	<licenses>
 		<license>
@@ -117,9 +117,9 @@
 	</licenses>
 	<scm>
 		<connection>scm:git:git://github.com/jiemakel/seco-lexicalanalysis.git</connection>
-    <developerConnection>scm:git:git@github.com:jiemakel/seco-lexicalanalysis.git</developerConnection>
-    <url>https://github.com/jiemakel/seco-lexicalanalysis</url>
-  </scm>
+		<developerConnection>scm:git:git@github.com:jiemakel/seco-lexicalanalysis.git</developerConnection>
+		<url>https://github.com/jiemakel/seco-lexicalanalysis</url>
+	</scm>
 	<organization>
 		<name>Semantic Computing Research Group</name>
 		<url>http://seco.cs.aalto.fi/</url>
@@ -141,13 +141,13 @@
 		</developer>
 	</developers>
 	<distributionManagement>
-	  <snapshotRepository>
-	    <id>ossrh</id>
-	    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-	  </snapshotRepository>
-	  <repository>
-	    <id>ossrh</id>
-	    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-	  </repository>
+		<snapshotRepository>
+			<id>ossrh</id>
+			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+		</snapshotRepository>
+		<repository>
+			<id>ossrh</id>
+			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+		</repository>
 	</distributionManagement>
 </project>
