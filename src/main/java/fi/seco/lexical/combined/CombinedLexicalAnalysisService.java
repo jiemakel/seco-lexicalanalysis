@@ -284,9 +284,24 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
 		int startOfSentenceInResults = 0;
 		List<WordToResults> ret = new ArrayList<WordToResults>();
+		int lastIndexInOriginal = 0;
+		int curIndexInOriginal = 0;
 		for (String sentence : getSentenceDetector(lang).sentDetect(str)) {
+			lastIndexInOriginal = curIndexInOriginal;
+			while (!str.substring(curIndexInOriginal).startsWith(sentence)) curIndexInOriginal++;
+			if (lastIndexInOriginal != curIndexInOriginal) {
+				String whitespace = str.substring(lastIndexInOriginal, curIndexInOriginal);
+				ret.add(new WordToResults(whitespace, Collections.singletonList(new Result().addGlobalTag("WHITESPACE", "TRUE").addPart(new WordPart(whitespace)))));
+			}
 			int wordInSentence = 0;
 			for (String word : t.tokenize(sentence)) {
+				lastIndexInOriginal = curIndexInOriginal;
+				while (!str.substring(curIndexInOriginal).startsWith(word)) curIndexInOriginal++;
+				if (lastIndexInOriginal != curIndexInOriginal) {
+					String whitespace = str.substring(lastIndexInOriginal, curIndexInOriginal);
+					ret.add(new WordToResults(whitespace, Collections.singletonList(new Result().addGlobalTag("WHITESPACE", "TRUE").addPart(new WordPart(whitespace)))));
+				}
+				curIndexInOriginal += word.length();
 				final List<Result> r = toResult(tc.analyze(word));
 				if (wordInSentence++==0) for (Result res : r) res.addGlobalTag("FIRST_IN_SENTENCE", "TRUE");
 				if (r.isEmpty() && maxErrorCorrectDistance>0) {
@@ -302,7 +317,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					}
 				}				
 				if (r.isEmpty() && guessUnknown && word.length()>=4) { // Fixed cutoff, don't guess words shorter than 4 chars.
-					Transducer tc2 = segmentUnknown ? getTransducer(lang,"guess-segment",guessSegmentTransducers) : getTransducer(lang,"guess",guessTransducers);
+					Transducer tc2 = segmentUnknown ? getTransducer(lang,"analysis-guess-segment",guessSegmentTransducers) : getTransducer(lang,"analysis-guess",guessTransducers);
 					String reversedLabel = StringUtils.reverse(word);
 					List<Transducer.Result> analysis = Collections.EMPTY_LIST;
 					int length = reversedLabel.length();
@@ -509,7 +524,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				}
 			}
 			for (WordToResults wtr : ret) {
-				List<Result> bestResult = new ArrayList<Result>();
+				Set<Result> bestResult = new HashSet<Result>();
 				boolean POS_MATCH = false;
 				boolean FIRST_LETTER_MATCH = false;
 				float cw = Float.MAX_VALUE;
@@ -652,10 +667,12 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
+		print(las.analyze("  Helsingissä   oli kylmää... , dm upunki. Ystäväni J.W. Snellman juoksi pitkään pakoon omituisia elikoita, jotka söivät hänen kädestään?!", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
+		System.exit(0);
 		System.out.println(las.baseform("twiittasi", new Locale("fi"), false, false,0));
 		System.out.println(las.baseform("twiittasi", new Locale("fi"), true, true,0));
 		System.out.println(las.baseform("Leh>tim»ehen",new Locale("fi"),false,true,2));
-		System.exit(0);
+		System.out.println(las.baseform("Helsingin", new Locale("fi"), false, true, 2));
 		System.out.println(las.baseform("Pariisi", new Locale("fi"), false, true, 2));
 		System.out.println(las.baseform("sup Pariisi", new Locale("fi"), false, true, 2));
 		System.out.println(las.baseform("oli Pariisi", new Locale("fi"), false, true, 2));
