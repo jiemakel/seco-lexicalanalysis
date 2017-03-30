@@ -523,88 +523,88 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					}
 				}
 			}
-			for (WordToResults wtr : ret) {
-				Set<Result> bestResult = new HashSet<Result>();
-				boolean POS_MATCH = false;
-				boolean FIRST_LETTER_MATCH = false;
-				float cw = Float.MAX_VALUE;
-				ObjectLongMap<String> fMap = getFrequencyMap(lang);
-				int guessCount = 0;
-				long frequency = 0;
-				for (Result res : wtr.getAnalysis()) {
-					StringBuilder lemma = new StringBuilder();
-					for (WordPart p : res.getParts()) {
-						if (fMap.containsKey(p.getLemma())) p.addTag("BASEFORM_FREQUENCY", ""+fMap.get(p.getLemma()));
-						lemma.append(p.getLemma());
-					}
-					int ngc = 0;
-					List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
-					if (gc!=null) ngc=Integer.parseInt(gc.get(0));
-					long myFrequency = fMap.getOrDefault(lemma.toString(), 0);
-					if (myFrequency!=0) res.addGlobalTag("BASEFORM_FREQUENCY", ""+myFrequency);
-					if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
-						if (POS_MATCH) {
-							if (res.getGlobalTags().containsKey("POS_MATCH")) {
-								if (res.getWeight() < cw) {
-									bestResult.clear();
-									bestResult.add(res);
-									cw = res.getWeight();
-									guessCount=ngc;
-									frequency = myFrequency;
-									FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-								} else if (res.getWeight() == cw) {
-									if (myFrequency>frequency) {
-										bestResult.clear();
-										bestResult.add(res);
-										guessCount=ngc;
-										frequency = myFrequency;
-										FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-									} else if (myFrequency==frequency) {
-										if (ngc>guessCount) {
-											guessCount=ngc;
-											bestResult.clear();
-										}
-										if (ngc==guessCount)
-											bestResult.add(res);
-									}
-								}
-							}
-						} else if (res.getGlobalTags().containsKey("POS_MATCH")) {
-							POS_MATCH = true;
-							bestResult.clear();
-							bestResult.add(res);
-							cw = res.getWeight();
-							guessCount=ngc;
-							frequency = myFrequency;
-							FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-						} else if (res.getWeight() < cw) {
-							bestResult.clear();
-							bestResult.add(res);
-							cw = res.getWeight();
-							guessCount=ngc;
-							frequency = myFrequency;
-							FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-						} else if (res.getWeight() == cw) {
-							if (myFrequency>frequency) {
+		}
+		for (WordToResults wtr : ret) {
+			List<Result> bestResult = new ArrayList<Result>();
+			boolean POS_MATCH = false;
+			boolean FIRST_LETTER_MATCH = false;
+			float cw = Float.MAX_VALUE;
+			ObjectLongMap<String> fMap = getFrequencyMap(lang);
+			int guessCount = 0;
+			long frequency = 0;
+			for (Result res : wtr.getAnalysis()) {
+				StringBuilder lemma = new StringBuilder();
+				for (WordPart p : res.getParts()) {
+					if (fMap.containsKey(p.getLemma())) p.addTag("BASEFORM_FREQUENCY", ""+fMap.get(p.getLemma()));
+					lemma.append(p.getLemma());
+				}
+				int ngc = 0;
+				List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
+				if (gc!=null) ngc=Integer.parseInt(gc.get(0));
+				long myFrequency = fMap.getOrDefault(lemma.toString(), 0);
+				if (myFrequency!=0) res.addGlobalTag("BASEFORM_FREQUENCY", ""+myFrequency);
+				if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
+					if (POS_MATCH) {
+						if (res.getGlobalTags().containsKey("POS_MATCH")) {
+							if (res.getWeight() < cw) {
 								bestResult.clear();
 								bestResult.add(res);
+								cw = res.getWeight();
 								guessCount=ngc;
 								frequency = myFrequency;
 								FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-							} else if (myFrequency==frequency) {
-								if (ngc>guessCount) {
-									guessCount=ngc;
+							} else if (res.getWeight() == cw) {
+								if (myFrequency>frequency) {
 									bestResult.clear();
-								}
-								if (ngc==guessCount)
 									bestResult.add(res);
+									guessCount=ngc;
+									frequency = myFrequency;
+									FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+								} else if (myFrequency==frequency) {
+									if (ngc>guessCount) {
+										guessCount=ngc;
+										bestResult.clear();
+									}
+									if (ngc==guessCount)
+										bestResult.add(res);
+								}
 							}
+						}
+					} else if (res.getGlobalTags().containsKey("POS_MATCH")) {
+						POS_MATCH = true;
+						bestResult.clear();
+						bestResult.add(res);
+						cw = res.getWeight();
+						guessCount=ngc;
+						frequency = myFrequency;
+						FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+					} else if (res.getWeight() < cw) {
+						bestResult.clear();
+						bestResult.add(res);
+						cw = res.getWeight();
+						guessCount=ngc;
+						frequency = myFrequency;
+						FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+					} else if (res.getWeight() == cw) {
+						if (myFrequency>frequency) {
+							bestResult.clear();
+							bestResult.add(res);
+							guessCount=ngc;
+							frequency = myFrequency;
+							FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+						} else if (myFrequency==frequency) {
+							if (ngc>guessCount) {
+								guessCount=ngc;
+								bestResult.clear();
+							}
+							if (ngc==guessCount)
+								bestResult.add(res);
 						}
 					}
 				}
-				for (Result res : bestResult)
-					res.addGlobalTag("BEST_MATCH", "TRUE");
 			}
+			for (Result res : bestResult)
+				res.addGlobalTag("BEST_MATCH", "TRUE");
 		}
 		return ret;
 	}
@@ -667,7 +667,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
-		print(las.analyze("[]", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
+		print(las.analyze("Astun aurinkoiselle Vironkadulle aivot ja sydän kiivaasti tykyttäen.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.exit(0);
 		print(las.analyze("  Helsingissä   oli kylmää... , dm upunki. Ystäväni J.W. Snellman juoksi pitkään pakoon omituisia elikoita, jotka söivät hänen kädestään?!", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.out.println(las.baseform("twiittasi", new Locale("fi"), false, false,0));

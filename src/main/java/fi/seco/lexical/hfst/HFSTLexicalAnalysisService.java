@@ -333,7 +333,9 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 							for (int i=0;i<tmp.length;i+=3)
 								w.addTag(tmp[i+1], tmp[i+2]);									
 						} else {
-							parsingPartialTag = tmp[0];
+							if (tmp[0].length() > 0 && tmp[0].charAt(0) == '[')
+								parsingPartialTag = tmp[0].substring(1);
+							else parsingPartialTag = tmp[0];
 							parsingTag = false;
 							lastWasLemmaStart = true;
 							lemma.setLength(0);
