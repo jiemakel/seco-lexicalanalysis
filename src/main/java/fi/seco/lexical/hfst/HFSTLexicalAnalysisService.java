@@ -304,15 +304,17 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		if (tr.getSymbols().get(0).startsWith("[")) { //[BOUNDARY=LEXITEM][LEMMA='san'][POS=NOUN][KTN=5][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='oma'][POS=ADJECTIVE][KTN=1%0][CMP=POS][NUM=SG][CASE=NOM][BOUNDARY=COMPOUND][GUESS=COMPOUND][LEMMA='lehti'][POS=NOUN][KTN=7][KAV=F][NUM=SG][CASE=PAR][ALLO=A][BOUNDARY=LEXITEM][CASECHANGE=NONE]
 			String parsingPartialTag = null;
 			boolean parsingTag = false;
+			boolean lastWasLemmaStart = false;
 			for (String s : tr.getSymbols()) {
 				if (s.length() == 0) continue;
-				if (s.charAt(0) == '[') {
+				if (s.charAt(0) == '[' && !lastWasLemmaStart) {
 					if (s.length() == 1) {
 						parsingPartialTag = null;
 						parsingTag = true;
 					} else {
 						String[] tmp = s.split("=");
 						if ("[BOUNDARY".equals(tmp[0]) || "[WORD_ID".equals(tmp[0])) {
+							lastWasLemmaStart = true;
 							parsingPartialTag = null;
 							parsingTag = false;
 							if (w == null)
@@ -324,6 +326,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 							lemma.setLength(0);
 						} else if (s.charAt(s.length() - 1) == ']') {
 							parsingPartialTag = null;
+							lastWasLemmaStart = false;
 							parsingTag = false;
 							if (w == null) w = new WordPart();
 							tmp=s.split("[=\\[\\]]");
@@ -332,11 +335,13 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 						} else {
 							parsingPartialTag = tmp[0];
 							parsingTag = false;
+							lastWasLemmaStart = true;
 							lemma.setLength(0);
 							if (tmp.length==2) lemma.append(tmp[1]);
 						}
 					}
-				} else if (s.charAt(s.length() - 1) == ']') {
+				} else if (s.charAt(s.length() - 1) == ']' && !lastWasLemmaStart) {
+					lastWasLemmaStart = false;
 					if (parsingPartialTag != null) {
 						if (w==null) w = new WordPart();
 						w.addTag(parsingPartialTag, lemma.toString());
@@ -351,7 +356,10 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 					lemma.setLength(0);
 					parsingPartialTag = null;
 					parsingTag = false;
-				} else lemma.append(s);
+				} else {
+					lastWasLemmaStart = false;
+					lemma.append(s);
+				}
 			}
 			if (!w.getTags().isEmpty()) if (w.getLemma() != null)
 				r.addPart(w);

@@ -667,8 +667,9 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
-		print(las.analyze("  Helsingissä   oli kylmää... , dm upunki. Ystäväni J.W. Snellman juoksi pitkään pakoon omituisia elikoita, jotka söivät hänen kädestään?!", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
+		print(las.analyze("[]", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.exit(0);
+		print(las.analyze("  Helsingissä   oli kylmää... , dm upunki. Ystäväni J.W. Snellman juoksi pitkään pakoon omituisia elikoita, jotka söivät hänen kädestään?!", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.out.println(las.baseform("twiittasi", new Locale("fi"), false, false,0));
 		System.out.println(las.baseform("twiittasi", new Locale("fi"), true, true,0));
 		System.out.println(las.baseform("Leh>tim»ehen",new Locale("fi"),false,true,2));
