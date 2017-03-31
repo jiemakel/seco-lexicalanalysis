@@ -550,6 +550,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					guessCount=ngc;
 					frequency = myFrequency;
 					FIRST_LETTER_MATCH = true;
+					POS_MATCH = res.getGlobalTags().containsKey("POS_MATCH");
 				} else if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
 					if (POS_MATCH) { // last is already a POS MATCH
 						if (res.getGlobalTags().containsKey("POS_MATCH")) {

@@ -313,8 +313,9 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 						parsingTag = true;
 					} else {
 						String[] tmp = s.split("=");
-						if ("[BOUNDARY".equals(tmp[0]) || "[WORD_ID".equals(tmp[0])) {
+						if ("[WORD_ID".equals(tmp[0]))
 							lastWasLemmaStart = true;
+						if ("[BOUNDARY".equals(tmp[0]) || lastWasLemmaStart) {
 							parsingPartialTag = null;
 							parsingTag = false;
 							if (w == null)
