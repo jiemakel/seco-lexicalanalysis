@@ -422,11 +422,14 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				}
 				ret.add(new WordToResults(word, r));
 			}
+			List<Word> tokens = null;
+			List<List<String>> tags = null;
 			if (fi.equals(lang) && ret.size() - startOfSentenceInResults <= 120 && depth > 0) { // NOTE!: hard cutoff for sentence length
-				List<Word> tokens = new ArrayList<Word>(ret.size() - startOfSentenceInResults);
+				tokens = new ArrayList<Word>(ret.size() - startOfSentenceInResults);
 				int j = startOfSentenceInResults;
-				while (startOfSentenceInResults < ret.size()) {
-					WordToResults wtr = ret.get(startOfSentenceInResults++);
+				while (j < ret.size()) {
+					WordToResults wtr;
+					do wtr = ret.get(j++); while (wtr.getAnalysis().get(0).getGlobalTags().containsKey("WHITESPACE"));
 					Set<String> tf = new HashSet<String>();
 					for (Result r : wtr.getAnalysis()) {
 						List<String> aPOS = r.getParts().isEmpty() ? null : r.getParts().get(r.getParts().size() - 1).getTags().get("UPOS");
@@ -439,13 +442,13 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					Arrays.sort(termFeatures);
 					tokens.add(new Word(wtr.getWord(), null, null, termFeatures, null, null));
 				}
-				List<List<String>> tags;
 				synchronized (fitag) {
 					tags = fitag.tag(new Sentence(tokens));
 				}
-				startOfSentenceInResults = j;
+				j = startOfSentenceInResults;
 				for (int k = 0; k < tags.size(); k++) {
-					WordToResults wtr = ret.get(startOfSentenceInResults++);
+					WordToResults wtr;
+					do wtr = ret.get(j++); while (wtr.getAnalysis().get(0).getGlobalTags().containsKey("WHITESPACE"));
 					for (Result r : wtr.getAnalysis()) {
 						if (!r.getParts().isEmpty()) {
 							if (r.getParts().size()==1 && (// Dirty hacks
@@ -466,153 +469,156 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 						}
 					}
 				}
-				if (depth > 1) {
-					startOfSentenceInResults = j;
-					SentenceData09 sd = new SentenceData09();
-					String[] forms = new String[tokens.size() + 1];
-					forms[0] = IOGenerals.ROOT;
-					String[] lemmas = new String[forms.length];
-					lemmas[0] = IOGenerals.ROOT_LEMMA;
-					String[] poss = new String[forms.length];
-					poss[0] = IOGenerals.ROOT_POS;
-					String[] feats = new String[forms.length];
-					feats[0] = IOGenerals.EMPTY_FEAT;
-					for (int k = 1; k < forms.length; k++) {
-						WordToResults wtr = ret.get(startOfSentenceInResults++);
-						List<String> ctags = tags.get(k - 1);
-						forms[k] = wtr.getWord();
-						lemmas[k] = wtr.getWord();
-						feats[k] = "_";
-						poss[k] = "_";
-						for (Result r : wtr.getAnalysis())
-							if (!r.getParts().isEmpty() && r.getGlobalTags().containsKey("POS_MATCH")) {
-								StringBuilder sb = new StringBuilder();
-								for (WordPart p : r.getParts()) {
-									sb.append(p.getLemma());
-									sb.append('|');
-								}
-								sb.setLength(sb.length() - 1);
-								lemmas[k] = sb.toString();
-								poss[k] = ctags.get(0);
-								sb.setLength(0);
-								for (int l = 1; l < ctags.size(); l++) {
-									sb.append(ctags.get(l));
-									sb.append('|');
-								}
-								sb.setLength(sb.length() - 1);
-								feats[k] = sb.toString();
-							}
-					}
-					sd.init(forms);
-					sd.setLemmas(lemmas);
-					sd.setPPos(poss);
-					sd.setFeats(feats);
-					SentenceData09 out;
-					synchronized (fiparser) {
-						out = fiparser.parse(sd, fiparser.params, false, fiparser.options);
-					}
-					startOfSentenceInResults = j;
-					for (int k = 0; k < out.forms.length; k++) {
-						WordToResults wtr = ret.get(startOfSentenceInResults++);
-						for (Result r : wtr.getAnalysis())
-							if (r.getGlobalTags().containsKey("POS_MATCH")) {
-								r.addGlobalTag("HEAD", "" + (j + out.pheads[k]));
-								r.addGlobalTag("DEPREL", out.plabels[k]);
-								
-							}
-					}
-				}
 			}
-		}
-		for (WordToResults wtr : ret) {
-			List<Result> bestResult = new ArrayList<Result>();
-			boolean POS_MATCH = false;
-			boolean FIRST_LETTER_MATCH = false;
-			float cw = Float.MAX_VALUE;
-			ObjectLongMap<String> fMap = getFrequencyMap(lang);
-			int guessCount = 0;
-			long frequency = 0;
-			for (Result res : wtr.getAnalysis()) {
-				StringBuilder lemma = new StringBuilder();
-				for (WordPart p : res.getParts()) {
-					if (fMap.containsKey(p.getLemma())) p.addTag("BASEFORM_FREQUENCY", ""+fMap.get(p.getLemma()));
-					lemma.append(p.getLemma());
-				}
-				int ngc = 0;
-				List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
-				if (gc!=null) ngc=Integer.parseInt(gc.get(0));
-				long myFrequency = fMap.getOrDefault(lemma.toString(), 0);
-				if (myFrequency!=0) res.addGlobalTag("BASEFORM_FREQUENCY", ""+myFrequency);
-				if (!FIRST_LETTER_MATCH && res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
-					bestResult.clear();
-					bestResult.add(res);
-					cw = res.getWeight();
-					guessCount=ngc;
-					frequency = myFrequency;
-					FIRST_LETTER_MATCH = true;
-					POS_MATCH = res.getGlobalTags().containsKey("POS_MATCH");
-				} else if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
-					if (POS_MATCH) { // last is already a POS MATCH
-						if (res.getGlobalTags().containsKey("POS_MATCH")) {
-							if (res.getWeight() < cw) {
-								bestResult.clear();
-								bestResult.add(res);
-								cw = res.getWeight();
-								guessCount=ngc;
-								frequency = myFrequency;
-								FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-							} else if (res.getWeight() == cw) {
-								if (myFrequency>frequency) {
+			int j = startOfSentenceInResults;
+			while (j < ret.size()) {
+				WordToResults wtr = ret.get(j++);
+				List<Result> bestResult = new ArrayList<Result>();
+				boolean POS_MATCH = false;
+				boolean FIRST_LETTER_MATCH = false;
+				float cw = Float.MAX_VALUE;
+				ObjectLongMap<String> fMap = getFrequencyMap(lang);
+				int guessCount = 0;
+				long frequency = 0;
+				for (Result res : wtr.getAnalysis()) {
+					StringBuilder lemma = new StringBuilder();
+					for (WordPart p : res.getParts()) {
+						if (fMap.containsKey(p.getLemma())) p.addTag("BASEFORM_FREQUENCY", ""+fMap.get(p.getLemma()));
+						lemma.append(p.getLemma());
+					}
+					int ngc = 0;
+					List<String> gc = res.getGlobalTags().get("GUESS_COUNT");
+					if (gc!=null) ngc=Integer.parseInt(gc.get(0));
+					long myFrequency = fMap.getOrDefault(lemma.toString(), 0);
+					if (myFrequency!=0) res.addGlobalTag("BASEFORM_FREQUENCY", ""+myFrequency);
+					if (!FIRST_LETTER_MATCH && res.getGlobalTags().get("FIRST_IN_SENTENCE")==null && res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
+						bestResult.clear();
+						bestResult.add(res);
+						cw = res.getWeight();
+						guessCount=ngc;
+						frequency = myFrequency;
+						FIRST_LETTER_MATCH = true;
+						POS_MATCH = res.getGlobalTags().containsKey("POS_MATCH");
+					} else if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
+						if (POS_MATCH) { // last is already a POS MATCH
+							if (res.getGlobalTags().containsKey("POS_MATCH")) {
+								if (res.getWeight() < cw) {
 									bestResult.clear();
 									bestResult.add(res);
+									cw = res.getWeight();
 									guessCount=ngc;
 									frequency = myFrequency;
 									FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-								} else if (myFrequency==frequency) {
-									if (ngc>guessCount) {
-										guessCount=ngc;
+								} else if (res.getWeight() == cw) {
+									if (myFrequency>frequency) {
 										bestResult.clear();
-									}
-									if (ngc==guessCount)
 										bestResult.add(res);
+										guessCount=ngc;
+										frequency = myFrequency;
+										FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+									} else if (myFrequency==frequency) {
+										if (ngc>guessCount) {
+											guessCount=ngc;
+											bestResult.clear();
+										}
+										if (ngc==guessCount)
+											bestResult.add(res);
+									}
 								}
 							}
-						}
-					} else if (res.getGlobalTags().containsKey("POS_MATCH")) {
-						POS_MATCH = true;
-						bestResult.clear();
-						bestResult.add(res);
-						cw = res.getWeight();
-						guessCount=ngc;
-						frequency = myFrequency;
-						FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-					} else if (res.getWeight() < cw) {
-						bestResult.clear();
-						bestResult.add(res);
-						cw = res.getWeight();
-						guessCount=ngc;
-						frequency = myFrequency;
-						FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-					} else if (res.getWeight() == cw) {
-						if (myFrequency>frequency) {
+						} else if (res.getGlobalTags().containsKey("POS_MATCH")) {
+							POS_MATCH = true;
 							bestResult.clear();
 							bestResult.add(res);
+							cw = res.getWeight();
 							guessCount=ngc;
 							frequency = myFrequency;
 							FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-						} else if (myFrequency==frequency) {
-							if (ngc>guessCount) {
-								guessCount=ngc;
+						} else if (res.getWeight() < cw) {
+							bestResult.clear();
+							bestResult.add(res);
+							cw = res.getWeight();
+							guessCount=ngc;
+							frequency = myFrequency;
+							FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+						} else if (res.getWeight() == cw) {
+							if (myFrequency>frequency) {
 								bestResult.clear();
-							}
-							if (ngc==guessCount)
 								bestResult.add(res);
+								guessCount=ngc;
+								frequency = myFrequency;
+								FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+							} else if (myFrequency==frequency) {
+								if (ngc>guessCount) {
+									guessCount=ngc;
+									bestResult.clear();
+								}
+								if (ngc==guessCount)
+									bestResult.add(res);
+							}
 						}
 					}
 				}
+				for (Result res : bestResult)
+					res.addGlobalTag("BEST_MATCH", "TRUE");
+			}			
+			if (fi.equals(lang) && ret.size() - startOfSentenceInResults <= 120 && depth > 1) { // NOTE!: hard cutoff for sentence length
+				j = startOfSentenceInResults;
+				SentenceData09 sd = new SentenceData09();
+				String[] forms = new String[tokens.size() + 1];
+				forms[0] = IOGenerals.ROOT;
+				String[] lemmas = new String[forms.length];
+				lemmas[0] = IOGenerals.ROOT_LEMMA;
+				String[] poss = new String[forms.length];
+				poss[0] = IOGenerals.ROOT_POS;
+				String[] feats = new String[forms.length];
+				feats[0] = IOGenerals.EMPTY_FEAT;
+				for (int k = 1; k < forms.length; k++) {
+					WordToResults wtr;
+					do wtr = ret.get(j++); while (wtr.getAnalysis().get(0).getGlobalTags().containsKey("WHITESPACE"));
+					List<String> ctags = tags.get(k - 1);
+					forms[k] = wtr.getWord();
+					lemmas[k] = wtr.getWord();
+					feats[k] = "_";
+					poss[k] = "_";
+					for (Result r : wtr.getAnalysis())
+						if (!r.getParts().isEmpty() && r.getGlobalTags().containsKey("BEST_MATCH")) {
+							StringBuilder sb = new StringBuilder();
+							for (WordPart p : r.getParts()) {
+								sb.append(p.getLemma());
+								sb.append('|');
+							}
+							sb.setLength(sb.length() - 1);
+							lemmas[k] = sb.toString();
+							poss[k] = ctags.get(0);
+							sb.setLength(0);
+							for (int l = 1; l < ctags.size(); l++) {
+								sb.append(ctags.get(l));
+								sb.append('|');
+							}
+							sb.setLength(sb.length() - 1);
+							feats[k] = sb.toString();
+						}
+				}
+				sd.init(forms);
+				sd.setLemmas(lemmas);
+				sd.setPPos(poss);
+				sd.setFeats(feats);
+				SentenceData09 out;
+				synchronized (fiparser) {
+					out = fiparser.parse(sd, fiparser.params, false, fiparser.options);
+				}
+				j = startOfSentenceInResults;
+				for (int k = 0; k < out.forms.length; k++) {
+					WordToResults wtr = ret.get(j++);
+					for (Result r : wtr.getAnalysis())
+						if (r.getGlobalTags().containsKey("BEST_MATCH")) {
+							r.addGlobalTag("HEAD", "" + (j + out.pheads[k]));
+							r.addGlobalTag("DEPREL", out.plabels[k]);
+							
+						}
+				}
 			}
-			for (Result res : bestResult)
-				res.addGlobalTag("BEST_MATCH", "TRUE");
 		}
 		return ret;
 	}

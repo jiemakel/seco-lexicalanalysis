@@ -33,7 +33,7 @@ public class TestCombinedLexicalAnalysisService {
 		.filter(a -> a.getGlobalTags().containsKey("BEST_MATCH"))
 		.forEach(m -> {
 			String alemma = toLemma(m.getParts());
-			if (!lemma.equals(alemma)) fail(lemma + " is not best match. Instead got "+alemma);
+			if (!lemma.equals(alemma)) fail(lemma + " is not best match. Instead got "+alemma+ " (from "+wtr.toString()+")");
 		});
 		
 	}
@@ -44,6 +44,17 @@ public class TestCombinedLexicalAnalysisService {
 		List<WordToResults> results = las.analyze("Helsingin", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);
 		assertEquals(results.size(), 1);
 		assertBestMatchIs(results.get(0), "Helsinki");
+	}
+	
+	@Test
+	public void testParis() {
+		// Pariisi vs pari
+		List<WordToResults> results = las.analyze("Pariisi", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);
+		assertEquals(results.size(), 1);
+		assertBestMatchIs(results.get(0), "pari");
+		results = las.analyze("Pariisi on", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);
+		assertEquals(results.size(), 3);
+		assertBestMatchIs(results.get(0), "Pariisi");
 	}
 
 	@Test
