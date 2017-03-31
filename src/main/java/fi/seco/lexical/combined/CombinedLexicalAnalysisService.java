@@ -543,8 +543,15 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				if (gc!=null) ngc=Integer.parseInt(gc.get(0));
 				long myFrequency = fMap.getOrDefault(lemma.toString(), 0);
 				if (myFrequency!=0) res.addGlobalTag("BASEFORM_FREQUENCY", ""+myFrequency);
-				if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
-					if (POS_MATCH) {
+				if (!FIRST_LETTER_MATCH && res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
+					bestResult.clear();
+					bestResult.add(res);
+					cw = res.getWeight();
+					guessCount=ngc;
+					frequency = myFrequency;
+					FIRST_LETTER_MATCH = true;
+				} else if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
+					if (POS_MATCH) { // last is already a POS MATCH
 						if (res.getGlobalTags().containsKey("POS_MATCH")) {
 							if (res.getWeight() < cw) {
 								bestResult.clear();
@@ -667,7 +674,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	
 	public static void main(String[] args) {
 		final CombinedLexicalAnalysisService las = new CombinedLexicalAnalysisService();
-		print(las.analyze("Astun aurinkoiselle Vironkadulle aivot ja sydän kiivaasti tykyttäen.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
+		print(las.analyze("Suomalaismies Venäjän", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.exit(0);
 		print(las.analyze("  Helsingissä   oli kylmää... , dm upunki. Ystäväni J.W. Snellman juoksi pitkään pakoon omituisia elikoita, jotka söivät hänen kädestään?!", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2));
 		System.out.println(las.baseform("twiittasi", new Locale("fi"), false, false,0));
