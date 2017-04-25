@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipInputStream;
 
@@ -278,6 +280,8 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		}
 	}
 	
+	private final static Pattern punctuationAtEnd = Pattern.compile("\\p{P}+$");
+	
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean baseformSegments, boolean guessUnknown, boolean segmentUnknown, int maxErrorCorrectDistance, int depth) {
 		if (!supportedLocales.contains(lang)) return super.analyze(str, lang, inflections, baseformSegments, guessUnknown, segmentUnknown, maxErrorCorrectDistance);
 		Tokenizer t = getTokenizer(lang);
@@ -294,7 +298,16 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				ret.add(new WordToResults(whitespace, Collections.singletonList(new Result().addGlobalTag("WHITESPACE", "TRUE").addPart(new WordPart(whitespace)))));
 			}
 			int wordInSentence = 0;
-			for (String word : t.tokenize(sentence)) {
+			String[] sentenceTokens = t.tokenize(sentence);
+			if (sentenceTokens.length>0) { // check for punctuation at end of sentence, because the machine learned tokenizer sometimes makes mistakes there (any word ending with m.)
+				Matcher m = punctuationAtEnd.matcher(sentenceTokens[sentenceTokens.length-1]); 
+				if (m.find() && m.start() != 0) {
+					sentenceTokens = Arrays.copyOf(sentenceTokens, sentenceTokens.length + 1);
+					sentenceTokens[sentenceTokens.length - 1] = sentenceTokens[sentenceTokens.length - 2].substring(m.start());
+					sentenceTokens[sentenceTokens.length - 2] = sentenceTokens[sentenceTokens.length - 2].substring(0, m.start());
+				}
+			}
+			for (String word: sentenceTokens) {
 				lastIndexInOriginal = curIndexInOriginal;
 				while (!str.substring(curIndexInOriginal).startsWith(word)) curIndexInOriginal++;
 				if (lastIndexInOriginal != curIndexInOriginal) {

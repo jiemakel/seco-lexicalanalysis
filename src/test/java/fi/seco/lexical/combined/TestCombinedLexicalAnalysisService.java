@@ -25,10 +25,10 @@ public class TestCombinedLexicalAnalysisService {
 		List<WordToResults> results = las.analyze("Suomalaismies Venäjän", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);
 		Optional<WordToResults> word = results.stream().filter(r -> r.getWord().equals("Venäjän")).findFirst(); 
 		assertTrue("Couldn't find Venäjän in analysis",word.isPresent());
-		assertBestMatchIs(word.get(), "Venäjä");
+		assertBestMatchIs("Venäjä", word.get());
 	}
 	
-	private void assertBestMatchIs(WordToResults wtr, String lemma) {
+	private void assertBestMatchIs(String lemma, WordToResults wtr) {
 		wtr.getAnalysis().stream()
 		.filter(a -> a.getGlobalTags().containsKey("BEST_MATCH"))
 		.forEach(m -> {
@@ -42,19 +42,19 @@ public class TestCombinedLexicalAnalysisService {
 	public void testHelsinki() {
 		// Helsing vs Helsinki
 		List<WordToResults> results = las.analyze("Helsingin", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);
-		assertEquals(results.size(), 1);
-		assertBestMatchIs(results.get(0), "Helsinki");
+		assertEquals(1, results.size());
+		assertBestMatchIs("Helsinki", results.get(0));
 	}
 	
 	@Test
 	public void testParis() {
 		// Pariisi vs pari
 		List<WordToResults> results = las.analyze("Pariisi", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);
-		assertEquals(results.size(), 1);
-		assertBestMatchIs(results.get(0), "pari");
+		assertEquals(1, results.size());
+		assertBestMatchIs("pari", results.get(0));
 		results = las.analyze("Pariisi on", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);
-		assertEquals(results.size(), 3);
-		assertBestMatchIs(results.get(0), "Pariisi");
+		assertEquals(3, results.size());
+		assertBestMatchIs("Pariisi", results.get(0));
 	}
 
 	@Test
@@ -63,6 +63,15 @@ public class TestCombinedLexicalAnalysisService {
 		List<WordToResults> results = las.analyze("Mannerheim-risti", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);
 		assertEquals(results.size(), 1);
 		assertTrue(results.toString(), results.get(0).getAnalysis().stream().allMatch(a -> !toLemma(a.getParts()).contains("[WORD_ID")));
+	}
+
+	@Test
+	public void testMannerheimAtEndOfSentence() {
+		// The machine learned tokenizer used to tokenize everything ending with m. together, e.g. "Mannerheim." 
+		List<WordToResults> results = las.analyze("Mannerheim.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);
+		assertEquals(2, results.size());
+		assertBestMatchIs("Mannerheim", results.get(0));
+		assertBestMatchIs(".", results.get(1));
 	}
 
 }
