@@ -622,11 +622,17 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					out = fiparser.parse(sd, fiparser.params, false, fiparser.options);
 				}
 				j = startOfSentenceInResults;
+			        int wp = 0;	
 				for (int k = 0; k < out.forms.length; k++) {
-					WordToResults wtr = ret.get(j++);
+					WordToResults wtr;
+					do { 
+                                          wtr = ret.get(j++); 
+                                          if (!wtr.getAnalysis().get(0).getGlobalTags().containsKey("WHITESPACE")) break;
+                                          wp++;
+					} while (true);
 					for (Result r : wtr.getAnalysis())
 						if (r.getGlobalTags().containsKey("BEST_MATCH")) {
-							r.addGlobalTag("HEAD", "" + (j + out.pheads[k]));
+							r.addGlobalTag("HEAD", "" + (j + wp + out.pheads[k]));
 							r.addGlobalTag("DEPREL", out.plabels[k]);
 							
 						}
