@@ -286,11 +286,11 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		if (!supportedLocales.contains(lang)) return super.analyze(str, lang, inflections, baseformSegments, guessUnknown, segmentUnknown, maxErrorCorrectDistance);
 		Tokenizer t = getTokenizer(lang);
 		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
-		int startOfSentenceInResults = 0;
 		List<WordToResults> ret = new ArrayList<WordToResults>();
 		int lastIndexInOriginal = 0;
 		int curIndexInOriginal = 0;
 		for (String sentence : getSentenceDetector(lang).sentDetect(str)) {
+			int startOfSentenceInResults = ret.size();
 			lastIndexInOriginal = curIndexInOriginal;
 			while (!str.substring(curIndexInOriginal).startsWith(sentence)) curIndexInOriginal++;
 			if (lastIndexInOriginal != curIndexInOriginal) {
