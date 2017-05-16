@@ -80,6 +80,11 @@ public class TestCombinedLexicalAnalysisService {
 		assertFalse("Multiple BEST_MATCHES in "+results, results.stream().anyMatch(p -> p.getAnalysis().stream().anyMatch(a -> a.getGlobalTags().containsKey("BEST_MATCH") && a.getGlobalTags().get("BEST_MATCH").size() > 1)));
 		assertFalse("Multiple POS_MATCHES in "+results, results.stream().anyMatch(p -> p.getAnalysis().stream().anyMatch(a -> a.getGlobalTags().containsKey("POS_MATCH") && a.getGlobalTags().get("POS_MATCH").size() > 1)));
 	}
+	
+	@Test
+	public void testBaseforming() {
+		assertEquals("suvakki ja Soldiers of Odin",las.baseform("suvakeilla ja Soldiers of Odineille",new Locale("fi"), false, true, 0));
+	}
 
 	
 }

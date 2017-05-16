@@ -270,10 +270,8 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		try {
 			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST, baseformSegments, guessUnknown, false, maxEditDistance, depth);
 			StringBuilder ret = new StringBuilder();
-			for (WordToResults cr : crc) {
+			for (WordToResults cr : crc)
 				ret.append(getBestLemma(cr, lang, baseformSegments));
-				ret.append(' ');
-			}
 			return ret.toString().trim();
 		} catch (ArrayIndexOutOfBoundsException e) {
 			return string;
@@ -655,7 +653,6 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 			if (!inflected.isEmpty())
 				ret.append(inflected);
 			else ret.append(part.getWord());
-			ret.append(' ');
 		}
 		return ret.toString().trim();
 	}
