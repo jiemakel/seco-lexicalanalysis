@@ -84,6 +84,7 @@ public class TestCombinedLexicalAnalysisService {
 	@Test
 	public void testBaseforming() {
 		assertEquals("suvakki ja Soldiers of Odin",las.baseform("suvakeilla ja Soldiers of Odineille",new Locale("fi"), false, true, 0));
+		assertEquals("mobil apparat",las.baseform("mobila apparater",new Locale("sv"), false, true, 0));
 	}
 
 	

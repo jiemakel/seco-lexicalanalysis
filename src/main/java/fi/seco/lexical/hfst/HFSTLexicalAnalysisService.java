@@ -651,7 +651,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			StringBuilder ret = new StringBuilder();
 			for (WordToResults cr : crc) {
 				ret.append(getBestLemma(cr, lang, segments));
-				ret.append(' ');
+				if (!lang.getLanguage().equals("fi")) ret.append(' '); // FIXME remove hardcoding
 			}
 			return ret.toString().trim();
 		} catch (ArrayIndexOutOfBoundsException e) {
