@@ -270,10 +270,8 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		try {
 			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST, baseformSegments, guessUnknown, false, maxEditDistance, depth);
 			StringBuilder ret = new StringBuilder();
-			for (WordToResults cr : crc) {
+			for (WordToResults cr : crc)
 				ret.append(getBestLemma(cr, lang, baseformSegments));
-				if (!lang.getLanguage().equals("fi")) ret.append(' '); // FIXME remove hardcoding
-			}
 			return ret.toString().trim();
 		} catch (ArrayIndexOutOfBoundsException e) {
 			return string;

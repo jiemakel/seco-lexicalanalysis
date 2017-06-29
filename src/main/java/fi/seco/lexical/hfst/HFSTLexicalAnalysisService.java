@@ -26,6 +26,8 @@ import fi.seco.hfst.TransducerHeader;
 import fi.seco.hfst.UnweightedTransducer;
 import fi.seco.hfst.WeightedTransducer;
 import fi.seco.lexical.ALexicalAnalysisService;
+import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result;
+import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.WordToResults;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 import marmot.util.StringUtils;
 
@@ -484,7 +486,16 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		Transducer tc = getTransducer(lang, "analysis", analysisTransducers);
 		Collection<String> labels = tokenize(str,lang);
 		List<WordToResults> ret = new ArrayList<WordToResults>(labels.size());
-		for (String label : labels)
+		int lastIndexInOriginal = 0;
+		int curIndexInOriginal = 0;
+		for (String label : labels) {
+			lastIndexInOriginal = curIndexInOriginal;
+			while (!str.substring(curIndexInOriginal).startsWith(label)) curIndexInOriginal++;
+			if (lastIndexInOriginal != curIndexInOriginal) {
+				String whitespace = str.substring(lastIndexInOriginal, curIndexInOriginal);
+				ret.add(new WordToResults(whitespace, Collections.singletonList(new Result().addGlobalTag("WHITESPACE", "TRUE").addPart(new WordPart(whitespace)))));
+			}
+			curIndexInOriginal += label.length();
 			if (!"".equals(label)) {
 				final List<Result> r = toResult(tc.analyze(label));
 				if (r.isEmpty() && maxErrorCorrectDistance>0 && supportedFuzzyLocales.contains(lang) ) {
@@ -616,6 +627,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 				}
 				ret.add(new WordToResults(label, r));
 			}
+		}
 		return ret;
 	}
 	
@@ -629,7 +641,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	protected String getBestLemma(WordToResults cr, Locale lang, boolean segments) {
 		StringBuilder cur = new StringBuilder();
 		for (Result r : cr.getAnalysis())
-			if (r.getGlobalTags().containsKey("BEST_MATCH")) {
+			if (r.getGlobalTags().containsKey("BEST_MATCH") || cur.length()==0) {
 				cur.setLength(0);
 				for (WordPart wp : r.getParts())
 					if (segments) {
@@ -649,11 +661,9 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		try {
 			List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST, segments, guessUnknown, false, maxErrorCorrectDistance);
 			StringBuilder ret = new StringBuilder();
-			for (WordToResults cr : crc) {
+			for (WordToResults cr : crc)
 				ret.append(getBestLemma(cr, lang, segments));
-				if (!lang.getLanguage().equals("fi")) ret.append(' '); // FIXME remove hardcoding
-			}
-			return ret.toString().trim();
+			return ret.toString();
 		} catch (ArrayIndexOutOfBoundsException e) {
 			return string;
 		}
