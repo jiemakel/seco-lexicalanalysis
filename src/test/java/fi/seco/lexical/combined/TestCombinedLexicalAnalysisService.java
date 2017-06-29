@@ -5,9 +5,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.*;
 import org.junit.Test;
+
+import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.WordToResults;
 
@@ -28,14 +31,17 @@ public class TestCombinedLexicalAnalysisService {
 		assertBestMatchIs("Venäjä", word.get());
 	}
 	
+	private Stream<Result> getBestMatches(WordToResults wtr) {
+		return wtr.getAnalysis().stream()
+		.filter(a -> a.getGlobalTags().containsKey("BEST_MATCH"));
+	}
+
 	private void assertBestMatchIs(String lemma, WordToResults wtr) {
-		wtr.getAnalysis().stream()
-		.filter(a -> a.getGlobalTags().containsKey("BEST_MATCH"))
-		.forEach(m -> {
-			String alemma = toLemma(m.getParts());
-			if (!lemma.equals(alemma)) fail(lemma + " is not best match. Instead got "+alemma+ " (from "+wtr.toString()+")");
-		});
-		
+		getBestMatches(wtr)
+			.forEach(m -> {
+				String alemma = toLemma(m.getParts());
+				if (!lemma.equals(alemma)) fail(lemma + " is not best match. Instead got "+alemma+ " (from "+wtr.toString()+")");
+			});
 	}
 
 	@Test
@@ -87,5 +93,28 @@ public class TestCombinedLexicalAnalysisService {
 		assertEquals("mobil apparat",las.baseform("mobila apparater",new Locale("sv"), false, true, 0));
 	}
 
+	@Test
+	public void testDependencyParsing() {
+		List<WordToResults> results = las.analyze("karkkini ostin torilta", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);
+		assertEquals(5, results.size());
+		assertBestMatchIs("karkki", results.get(0));
+		getBestMatches(results.get(0))
+			.forEach(m -> {
+				assertEquals("3", m.getGlobalTags().get("HEAD").get(0));
+				assertEquals("dobj", m.getGlobalTags().get("DEPREL").get(0));
+			});
+		assertBestMatchIs("ostaa", results.get(2));
+		getBestMatches(results.get(2))
+			.forEach(m -> {
+				assertEquals("0", m.getGlobalTags().get("HEAD").get(0));
+				assertEquals("ROOT", m.getGlobalTags().get("DEPREL").get(0));
+			});
+		assertBestMatchIs("tori", results.get(4));
+		getBestMatches(results.get(4))
+			.forEach(m -> {
+				assertEquals("3", m.getGlobalTags().get("HEAD").get(0));
+				assertEquals("nommod", m.getGlobalTags().get("DEPREL").get(0));
+			});
+	}
 	
 }

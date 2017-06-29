@@ -593,7 +593,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					feats[k] = "_";
 					poss[k] = "_";
 					for (Result r : wtr.getAnalysis())
-						if (!r.getParts().isEmpty() && r.getGlobalTags().containsKey("BEST_MATCH")) {
+						if (!r.getParts().isEmpty() && r.getGlobalTags().containsKey("BEST_MATCH") || "_".equals(feats[k])) {
 							StringBuilder sb = new StringBuilder();
 							for (WordPart p : r.getParts()) {
 								sb.append(p.getLemma());
@@ -620,19 +620,29 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					out = fiparser.parse(sd, fiparser.params, false, fiparser.options);
 				}
 				j = startOfSentenceInResults;
-			        int wp = 0;	
+			    int wp = 0;
+			    int[] wps = new int[out.forms.length];
 				for (int k = 0; k < out.forms.length; k++) {
 					WordToResults wtr;
 					do { 
-                                          wtr = ret.get(j++); 
-                                          if (!wtr.getAnalysis().get(0).getGlobalTags().containsKey("WHITESPACE")) break;
-                                          wp++;
+                      wtr = ret.get(j++); 
+                      if (!wtr.getAnalysis().get(0).getGlobalTags().containsKey("WHITESPACE")) break;
+                      wp++;
+					} while (true);
+					wps[k]=wp;
+				}
+				j = startOfSentenceInResults;
+				for (int k = 0; k < out.forms.length; k++) {
+					WordToResults wtr;
+					do { 
+                      wtr = ret.get(j++); 
+                      if (!wtr.getAnalysis().get(0).getGlobalTags().containsKey("WHITESPACE")) break;
 					} while (true);
 					for (Result r : wtr.getAnalysis())
 						if (r.getGlobalTags().containsKey("BEST_MATCH")) {
-							r.addGlobalTag("HEAD", "" + (j + wp + out.pheads[k]));
+							if (out.pheads[k]==0) r.addGlobalTag("HEAD","0");
+							else r.addGlobalTag("HEAD", "" + (startOfSentenceInResults + wps[out.pheads[k]-1] + out.pheads[k]));
 							r.addGlobalTag("DEPREL", out.plabels[k]);
-							
 						}
 				}
 			}
