@@ -123,7 +123,6 @@ public class TestCombinedLexicalAnalysisService {
 		wtr = res.get(1);
 		assertEquals(" ",wtr.get(0));
 		wtr = res.get(2);
-		System.out.println(wtr);
 		assertEquals("suvakki",wtr.get(0));
 	}
 	
