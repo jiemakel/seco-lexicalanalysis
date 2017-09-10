@@ -10,6 +10,8 @@ public interface ILexicalAnalysisService {
 	public Collection<Locale> getSupportedSummarizeLocales();
 
 	public String baseform(String string, Locale lang, boolean markSegments, boolean guessUnknown, int maxErrorCorrectDistance);
+	
+	public List<List<String>> baseform(String string, Locale lang, boolean markSegments, boolean guessUnknown, int maxErrorCorrectDistance, boolean all);
 
 	public Collection<Locale> getSupportedBaseformLocales();
 

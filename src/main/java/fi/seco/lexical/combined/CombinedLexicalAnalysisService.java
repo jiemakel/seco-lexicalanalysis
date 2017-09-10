@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -572,6 +573,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				}
 				for (Result res : bestResult)
 					res.addGlobalTag("BEST_MATCH", "TRUE");
+				Collections.sort(wtr.getAnalysis(), resultComparator);
 			}			
 			if (fi.equals(lang) && ret.size() - startOfSentenceInResults <= 120 && depth > 1) { // NOTE!: hard cutoff for sentence length
 				j = startOfSentenceInResults;
@@ -649,6 +651,21 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 		}
 		return ret;
 	}
+	
+	public static final Comparator<Result> resultComparator = new Comparator<Result>() {
+
+		@Override
+		public int compare(Result o1, Result o2) {
+			if (o1.getGlobalTags().containsKey("BEST_MATCH") && !o2.getGlobalTags().containsKey("BEST_MATCH")) return -1;
+			if (o2.getGlobalTags().containsKey("BEST_MATCH") && !o1.getGlobalTags().containsKey("BEST_MATCH")) return 1;
+			if (o1.getGlobalTags().containsKey("POS_MATCH") && !o2.getGlobalTags().containsKey("POS_MATCH")) return -1;
+			if (o2.getGlobalTags().containsKey("POS_MATCH") && !o1.getGlobalTags().containsKey("POS_MATCH")) return 1;
+			if (o1.getWeight()<o2.getWeight()) return -1;
+			if (o2.getWeight()<o1.getWeight()) return 1;
+			return 0;
+		}
+		
+	};
 
 	@Override
 	public List<WordToResults> analyze(String str, Locale lang, List<String> inflections, boolean segmentBaseform, boolean guessUnknown, boolean segmentUnknown, int maxEditDistance) {

@@ -92,7 +92,41 @@ public class TestCombinedLexicalAnalysisService {
 		assertEquals("suvakki ja Soldiers of Odin",las.baseform("suvakeilla ja Soldiers of Odineille",new Locale("fi"), false, true, 0));
 		assertEquals("mobil apparat",las.baseform("mobila apparater",new Locale("sv"), false, true, 0));
 	}
+	
+	@Test
+	public void testAnalysisOrdering() {
+		List<WordToResults> res = las.analyze("kuin", new Locale("fi"), Collections.EMPTY_LIST, false, true, true, 1);
+		WordToResults wtr = res.get(0);
+		assertTrue(wtr.getAnalysis().get(0).getGlobalTags().containsKey("BEST_MATCH"));
+		assertEquals("kuin",wtr.getAnalysis().get(0).getParts().get(0).getLemma());
+		assertEquals("kuu",wtr.getAnalysis().get(wtr.getAnalysis().size()-2).getParts().get(0).getLemma());
+		assertEquals("kuti",wtr.getAnalysis().get(wtr.getAnalysis().size()-1).getParts().get(0).getLemma());
+	}
 
+	@Test
+	public void testBaseformOrdering() {
+		List<List<String>> res = las.baseform("kuin suvakeilla", new Locale("fi"), false, true, 0, false);
+		List<String> wtr = res.get(0);
+		assertEquals(3, wtr.size());
+		assertEquals("kuin",wtr.get(0));
+		assertEquals("kuin",wtr.get(1));
+		assertEquals("kuin",wtr.get(2));
+		wtr = res.get(1);
+		assertEquals(" ",wtr.get(0));
+		wtr = res.get(2);
+		assertEquals("suvakki",wtr.get(0));
+		res = las.baseform("kuin suvakeilla", new Locale("fi"), false, true, 0, true);
+		wtr = res.get(0);
+		assertEquals("kuin",wtr.get(0));
+		assertEquals("kuu",wtr.get(wtr.size()-2));
+		assertEquals("kuti",wtr.get(wtr.size()-1));
+		wtr = res.get(1);
+		assertEquals(" ",wtr.get(0));
+		wtr = res.get(2);
+		System.out.println(wtr);
+		assertEquals("suvakki",wtr.get(0));
+	}
+	
 	@Test
 	public void testDependencyParsing() {
 		List<WordToResults> results = las.analyze("karkkini ostin torilta", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);

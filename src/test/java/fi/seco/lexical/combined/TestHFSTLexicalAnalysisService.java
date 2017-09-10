@@ -30,7 +30,26 @@ public class TestHFSTLexicalAnalysisService {
 		});
 		
 	}
-
+	
+	@Test
+	public void testAnalysisOrdering() {
+		List<WordToResults> res = las.analyze("kuin", new Locale("fi"), Collections.EMPTY_LIST, false, true, true, 1);
+		WordToResults wtr = res.get(0);
+		assertTrue(wtr.getAnalysis().get(0).getGlobalTags().containsKey("BEST_MATCH"));
+		assertEquals("kuin",wtr.getAnalysis().get(0).getParts().get(0).getLemma());
+		assertEquals("kuu",wtr.getAnalysis().get(wtr.getAnalysis().size()-2).getParts().get(0).getLemma());
+		assertEquals("kuti",wtr.getAnalysis().get(wtr.getAnalysis().size()-1).getParts().get(0).getLemma());
+	}
+	
+	@Test
+	public void testBaseformOrdering() {
+		List<List<String>> res = las.baseform("kuin", new Locale("fi"), false, true, 1, true);
+		List<String> wtr = res.get(0);
+		assertEquals("kuin",wtr.get(0));
+		assertEquals("kuu",wtr.get(wtr.size()-2));
+		assertEquals("kuti",wtr.get(wtr.size()-1));
+	}
+	
 	@Test
 	public void testThatMultiSentenceProcessingDoesNotRepeatTags() {
 		List<WordToResults> results = las.analyze("Minä olen Mannerheim. Mannerheim on mies. Mannerheim kävi Helsingissä.", new Locale("fi"),Collections.EMPTY_LIST,false,true,true,2);

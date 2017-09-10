@@ -19,7 +19,13 @@ public class ALexicalAnalysisService implements ILexicalAnalysisService {
 
 	@Override
 	public String baseform(String string, Locale lang, boolean markSegments, boolean guessUnknown, int maxErrorCorrectDistance) {
-		throw new UnsupportedOperationException();	}
+		throw new UnsupportedOperationException();	
+	}
+	
+	@Override
+	public List<List<String>> baseform(String string, Locale lang, boolean markSegments, boolean guessUnknown, int maxErrorCorrectDistance, boolean all) {
+		throw new UnsupportedOperationException();	
+	}
 
 	@Override
 	public Collection<Locale> getSupportedBaseformLocales() {

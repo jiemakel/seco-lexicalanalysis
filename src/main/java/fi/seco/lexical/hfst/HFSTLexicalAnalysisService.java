@@ -9,10 +9,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -579,6 +582,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 					r.add(new Result().addGlobalTag("UNKNOWN", "TRUE").addPart(new WordPart(label)));
 				List<Result> bestResult = new ArrayList<Result>();
 				float cw = Float.MAX_VALUE;
+				Collections.sort(r, weightComparator);
 				for (Result res : r) {
 					if (res.getWeight() < cw) {
 						bestResult.clear();
@@ -631,6 +635,17 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		return ret;
 	}
 	
+	protected static final Comparator<Result> weightComparator = new Comparator<Result>() {
+
+		@Override
+		public int compare(Result o1, Result o2) {
+			if (o1.getWeight()>o2.getWeight()) return 1;
+			else if (o1.getWeight()<o2.getWeight()) return -1;
+			return 0;
+		}
+		
+	};
+	
 	protected Result getBestResult(WordToResults cr) {
 		Result ret = null;
 		for (Result r : cr.getAnalysis())
@@ -655,7 +670,12 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			}
 		return cur.toString();
 	}
-
+	
+	protected List<String> getLemmas(WordToResults cr, boolean all) {
+		Stream<Result> analyses = all ? cr.analysis.stream() : cr.analysis.stream().filter(a -> a.globalTags.containsKey("BEST_MATCH"));
+		return analyses.map(a -> a.wordParts.stream().map(wp -> wp.lemma).collect(Collectors.joining())).collect(Collectors.toList());
+	}
+	
 	@Override
 	public String baseform(String string, Locale lang, boolean segments, boolean guessUnknown, int maxErrorCorrectDistance) {
 		try {
@@ -670,6 +690,12 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 
 	}
 
+	@Override
+	public List<List<String>> baseform(String string, Locale lang, boolean segments, boolean guessUnknown, int maxErrorCorrectDistance, boolean all) {
+		List<WordToResults> crc = analyze(string, lang, Collections.EMPTY_LIST, segments, guessUnknown, false, maxErrorCorrectDistance);
+		return crc.stream().map(wtr -> getLemmas(wtr, all)).collect(Collectors.toList());
+	}
+	
 	@Override
 	public Collection<Locale> getSupportedBaseformLocales() {
 		return supportedAnalyzeLocales;

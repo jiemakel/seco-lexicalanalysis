@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class CompoundLexicalAnalysisService implements ILexicalAnalysisService {
 
@@ -42,6 +43,15 @@ public class CompoundLexicalAnalysisService implements ILexicalAnalysisService {
 			if (bfs.containsKey(lang)) return bfs.get(lang).baseform(string, lang, markSegments, guessUnknown, maxEditDistance);
 		}
 		return string;
+	}
+	
+	public List<List<String>> baseform(String string, Locale lang, boolean markSegments, boolean guessUnknown, int maxEditDistance, boolean all) {
+		if (bfs.containsKey(lang)) return bfs.get(lang).baseform(string, lang, markSegments, guessUnknown, maxEditDistance, all);
+		if (lang != null && !"".equals(lang.getCountry())) {
+			lang = new Locale(lang.getLanguage());
+			if (bfs.containsKey(lang)) return bfs.get(lang).baseform(string, lang, markSegments, guessUnknown, maxEditDistance, all);
+		}
+		return LexicalAnalysisUtil.tokenize(string).stream().map(s -> Collections.singletonList(s)).collect(Collectors.toList());
 	}
 
 	@Override
