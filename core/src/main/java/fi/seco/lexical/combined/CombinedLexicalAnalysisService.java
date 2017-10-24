@@ -32,7 +32,6 @@ import com.carrotsearch.hppc.ObjectLongMap;
 import com.carrotsearch.hppc.procedures.ObjectIntProcedure;
 
 import fi.seco.hfst.Transducer;
-import fi.seco.lexical.LexicalAnalysisUtil;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService;
 import fi.seco.lexical.hfst.HFSTLexicalAnalysisService.Result.WordPart;
 import is2.data.Cluster;
@@ -65,19 +64,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	private final Map<Locale, TokenizerModel> tMap = new HashMap<Locale, TokenizerModel>();
 	private final Map<Locale, ObjectLongMap<String>> fMap = new HashMap<Locale, ObjectLongMap<String>>();
 
-	private final Set<Locale> supportedLocales = new HashSet<Locale>();
-
-	public CombinedLexicalAnalysisService() {
-		try {
-			BufferedReader r = new BufferedReader(new InputStreamReader(CombinedLexicalAnalysisService.class.getResourceAsStream("supported-locales")));
-			String line;
-			while ((line = r.readLine()) != null)
-				supportedLocales.add(new Locale(line));
-			r.close();
-		} catch (IOException e) {
-			log.error("Couldn't read locale information. Claiming to support no analysis/baseform languages");
-		}
-	}
+	private final Set<Locale> supportedLocales = Collections.singleton(new Locale("fi"));
 
 	private SentenceDetector getSentenceDetector(Locale lang) {
 		SentenceModel sd = sdMap.get(lang);
@@ -144,7 +131,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	static {
 		Tagger tmp = null;
 		try {
-			tmp = ((Tagger) new ObjectInputStream(new GZIPInputStream(CombinedLexicalAnalysisService.class.getResourceAsStream("fin_model.marmot"))).readObject());
+			tmp = ((Tagger) new ObjectInputStream(new GZIPInputStream(CombinedLexicalAnalysisService.class.getResourceAsStream("fi-model.marmot"))).readObject());
 		} catch (ClassNotFoundException e) {} catch (IOException e) {}
 		fitag = tmp;
 	}
@@ -159,7 +146,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 			fiparser.pipe = pipe;
 			ParametersFloat params = new ParametersFloat(0);
 			fiparser.params = params;
-			ZipInputStream zis = new ZipInputStream(CombinedLexicalAnalysisService.class.getResourceAsStream("parser.model"));
+			ZipInputStream zis = new ZipInputStream(CombinedLexicalAnalysisService.class.getResourceAsStream("fi-parser.model"));
 			zis.getNextEntry();
 			DataInputStream dis = new DataInputStream(zis);
 			pipe.mf.read(dis);

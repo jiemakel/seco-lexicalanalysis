@@ -3,16 +3,37 @@
 	<modelVersion>4.0.0</modelVersion>
 	<version>1.5.13</version>
 	<groupId>fi.seco</groupId>
-	<artifactId>lexicalanalysis-parent</artifactId>
-        <packaging>pom</packaging>
-	<name>Language analysis services parent</name>
-	<description>Services for language analysis in multiple languages</description>
-	<url>https://github.com/jiemakel/seco-lexicalanalysis</url>
-        <modules>
-	  <module>resources-fi</module>
-	  <module>resources-other</module>
-	  <module>core</module>
-	</modules>
+	<artifactId>lexicalanalysis-resources-fi</artifactId>
+	<name>Finnish resources for language analysis services</name>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.sonatype.plugins</groupId>
+				<artifactId>nexus-staging-maven-plugin</artifactId>
+				<version>1.6.3</version>
+				<extensions>true</extensions>
+				<configuration>
+					<serverId>ossrh</serverId>
+					<nexusUrl>https://oss.sonatype.org/</nexusUrl>
+					<autoReleaseAfterClose>true</autoReleaseAfterClose>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-gpg-plugin</artifactId>
+				<version>1.5</version>
+				<executions>
+					<execution>
+						<id>sign-artifacts</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>sign</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 	<licenses>
 		<license>
 			<name>MIT License</name>

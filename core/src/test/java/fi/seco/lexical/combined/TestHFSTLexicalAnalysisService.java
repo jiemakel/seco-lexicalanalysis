@@ -1,6 +1,11 @@
 package fi.seco.lexical.combined;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -62,6 +67,5 @@ public class TestHFSTLexicalAnalysisService {
 		assertEquals("juosta, läpi yö",las.baseform("juoksin, läpi yön",new Locale("fi"), false, true, 0));
 		assertEquals("mobil apparat",las.baseform("mobila apparater",new Locale("sv"), false, true, 0));
 	}
-
 	
 }

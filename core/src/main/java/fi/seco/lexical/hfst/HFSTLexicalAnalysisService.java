@@ -5,11 +5,13 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -184,54 +186,22 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	}
 
 	public HFSTLexicalAnalysisService() {
+		List<String> resources = new ArrayList<String>();
 		try {
-			BufferedReader r = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream("analysis-locales")));
-			String line;
-			while ((line = r.readLine()) != null)
-				supportedAnalyzeLocales.add(new Locale(line));
-			r.close();
-		} catch (IOException e) {
-			log.error("Couldn't read locale information. Claiming to support no analysis/baseform languages");
-		}
-		try {
-			BufferedReader r = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream("inflection-locales")));
-			String line;
-			while ((line = r.readLine()) != null) {
-				String[] parts = line.split(":",-1);
-				supportedInflectionLocales.add(new Locale(parts[0]));
-				inflectionTags.put(new Locale(parts[0]), new String[] {parts[1], parts[2], parts[3]});
+			Enumeration<URL> paths = HFSTLexicalAnalysisService.class.getClassLoader().getResources("fi/seco/lexical/hfst");
+			while (paths.hasMoreElements()) {
+				BufferedReader br = new BufferedReader(new InputStreamReader(paths.nextElement().openStream()));
+				String resource;
+				while ((resource = br.readLine()) != null) resources.add(resource);
 			}
-			r.close();
 		} catch (IOException e) {
-			log.error("Couldn't read locale information. Claiming to support no inflection languages");
+		   throw new IllegalArgumentException("Couldn't read transducer information");
 		}
-		try {
-			BufferedReader r = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream("hyphenation-locales")));
-			String line;
-			while ((line = r.readLine()) != null)
-				supportedHyphenationLocales.add(new Locale(line));
-			r.close();
-		} catch (IOException e) {
-			log.error("Couldn't read locale information. Claiming to support no hyphenation languages");
-		}
-		try {
-			BufferedReader r = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream("guess-locales")));
-			String line;
-			while ((line = r.readLine()) != null)
-				supportedGuessLocales.add(new Locale(line));
-			r.close();
-		} catch (IOException e) {
-			log.error("Couldn't read locale information. Claiming to support no guessing languages");
-		}
-		try {
-			BufferedReader r = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream("fuzzy-locales")));
-			String line;
-			while ((line = r.readLine()) != null)
-				supportedFuzzyLocales.add(new Locale(line));
-			r.close();
-		} catch (IOException e) {
-			log.error("Couldn't read locale information. Claiming to support no fuzzy languages");
-		}
+		resources.stream().filter(r -> r.endsWith("-analysis.hfst.ol")).forEach(r -> supportedAnalyzeLocales.add(new Locale(r.substring(0, r.indexOf('-')))));
+		resources.stream().filter(r -> r.endsWith("-inflection.hfst.ol")).forEach(r -> supportedInflectionLocales.add(new Locale(r.substring(0, r.indexOf('-')))));
+		resources.stream().filter(r -> r.endsWith("-hyphenation.hfst.ol")).forEach(r -> supportedHyphenationLocales.add(new Locale(r.substring(0, r.indexOf('-')))));
+		resources.stream().filter(r -> r.endsWith("-analysis-guess.hfst.ol")).forEach(r -> supportedGuessLocales.add(new Locale(r.substring(0, r.indexOf('-')))));
+		resources.stream().filter(r -> r.endsWith("-analysis-fuzzy.hfst.ol")).forEach(r -> supportedFuzzyLocales.add(new Locale(r.substring(0, r.indexOf('-')))));
 	}
 	
 	protected char[] getAlphabet(Locale l) {
