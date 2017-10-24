@@ -303,82 +303,84 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				curIndexInOriginal += word.length();
 				final List<Result> r = toResult(tc.analyze(word));
 				if (wordInSentence++==0) for (Result res : r) res.addGlobalTag("FIRST_IN_SENTENCE", "TRUE");
-				if (r.isEmpty() && maxErrorCorrectDistance>0) {
-					Transducer tc2 = segmentUnknown ? getTransducer(lang,"analysis-fuzzy-segment",fuzzySegmentTransducers) : getTransducer(lang,"analysis-fuzzy",fuzzyTransducers);
-					for (int j=1;j<=maxErrorCorrectDistance;j++) {
-						for (String c : getEditDistance(lang, word,j)) {
-							List<Transducer.Result> res2 = tc2.analyze(c);
-							for (Transducer.Result r2: res2)
-								if (r2.getWeight()<(j+1)*1000)
-									r.add(toResult(r2).addGlobalTag("EDIT_DISTANCE", ""+j));
+				if (r.isEmpty()) {
+					if (maxErrorCorrectDistance>0) {
+						Transducer tc2 = segmentUnknown ? getTransducer(lang,"analysis-fuzzy-segment",fuzzySegmentTransducers) : getTransducer(lang,"analysis-fuzzy",fuzzyTransducers);
+						for (int j=1;j<=maxErrorCorrectDistance;j++) {
+							for (String c : getEditDistance(lang, word,j)) {
+								List<Transducer.Result> res2 = tc2.analyze(c);
+								for (Transducer.Result r2: res2)
+									if (r2.getWeight()<(j+1)*1000)
+										r.add(toResult(r2).addGlobalTag("EDIT_DISTANCE", ""+j));
+							}
+							if (!r.isEmpty()) break;
 						}
-						if (!r.isEmpty()) break;
 					}
-				}				
-				if (r.isEmpty() && guessUnknown && word.length()>=4) { // Fixed cutoff, don't guess words shorter than 4 chars.
-					Transducer tc2 = segmentUnknown ? getTransducer(lang,"analysis-guess-segment",guessSegmentTransducers) : getTransducer(lang,"analysis-guess",guessTransducers);
-					String reversedLabel = StringUtils.reverse(word);
-					List<Transducer.Result> analysis = Collections.EMPTY_LIST;
-					int length = reversedLabel.length();
-					while (analysis.isEmpty() && length>3) // Fixed cutoff of min 3 last chars to use 
-						analysis = tc2.analyze(reversedLabel.substring(0,length--));
-					if (!analysis.isEmpty()) {
-						for (Transducer.Result tr: analysis) {
-							if (tr.getSymbols().isEmpty()) continue;
-							Collections.reverse(tr.getSymbols());
-							if (!tr.getSymbols().get(0).startsWith("[")) tr.getSymbols().add(0,"[WORD_ID=");
-						}
-						ObjectIntHashMap<Result> gres = new ObjectIntHashMap<Result>();
-						outer: for (Result gr : toResult(analysis)) {
-							if (gr.getParts().isEmpty()) continue;
-							boolean empty = true;
-							for (WordPart p : gr.getParts()) if (!"".equals(p.getLemma())) {
-								empty=false;
-								break;
+					if (guessUnknown && word.length()>=4) { // Fixed cutoff, don't guess words shorter than 4 chars.
+						Transducer tc2 = segmentUnknown ? getTransducer(lang,"analysis-guess-segment",guessSegmentTransducers) : getTransducer(lang,"analysis-guess",guessTransducers);
+						String reversedLabel = StringUtils.reverse(word);
+						List<Transducer.Result> analysis = Collections.EMPTY_LIST;
+						int length = reversedLabel.length();
+						while (analysis.isEmpty() && length>3) // Fixed cutoff of min 3 last chars to use 
+							analysis = tc2.analyze(reversedLabel.substring(0,length--));
+						if (!analysis.isEmpty()) {
+							for (Transducer.Result tr: analysis) {
+								if (tr.getSymbols().isEmpty()) continue;
+								Collections.reverse(tr.getSymbols());
+								if (!tr.getSymbols().get(0).startsWith("[")) tr.getSymbols().add(0,"[WORD_ID=");
 							}
-							if (empty) continue;
-							gr.getParts().get(0).getTags().remove("GUESS_CATEGORY");
-							gr.getParts().get(0).getTags().remove("KAV");
-							gr.getParts().get(0).getTags().remove("PROPER");
-							gr.getParts().get(0).getTags().remove("SEM");
-							List<String> pos = gr.getParts().get(0).getTags().get("UPOS");
-							if (pos!=null) for (int j=0;j<pos.size();j++)
-								if (pos.get(j).equals("PROPN")) pos.set(j,"NOUN");
-							gr.getParts().get(0).setLemma(word.substring(0,word.length()-length-1)+gr.getParts().get(0).getLemma());
-							List<String> gsegments = gr.getParts().get(0).getTags().get("SEGMENT");
-							if (gsegments!=null) {
-								List<String> nsegments = new ArrayList<String>();
-								int clindex = word.length()-1;
-								for (int j=gsegments.size()-1;j>=0;j--) {
-									String cs = gsegments.get(j);
-									if (cs.contains("{WB}")) continue outer;
-									int cindex = cs.length()-1; 
-									while (cindex>=0 && clindex>=0) {
-										if (cs.charAt(cindex)=='»') cindex--;
-										else {
-											String tmp = cs.substring(0,cindex+1);
-											if (tmp.endsWith("{WB}") || tmp.endsWith("{XB}") || tmp.endsWith("{DB}") || tmp.endsWith("{MB}")) cindex-=4;
-											else if (tmp.endsWith("{STUB}")) cindex-=6;
-											else if (tmp.endsWith("{hyph?}")) cindex-=7;
-											else if (word.charAt(clindex--)!=cs.charAt(cindex--)) break;
-										}
-									}
-									if (cindex!=-1) {
-										nsegments.add(word.substring(0,clindex+2) + cs.substring(cindex+2));
-										clindex=-1;
-										break;
-									} else nsegments.add(gsegments.get(j));
-									if (j!=0 && clindex==-1) continue outer;
+							ObjectIntHashMap<Result> gres = new ObjectIntHashMap<Result>();
+							outer: for (Result gr : toResult(analysis)) {
+								if (gr.getParts().isEmpty()) continue;
+								boolean empty = true;
+								for (WordPart p : gr.getParts()) if (!"".equals(p.getLemma())) {
+									empty=false;
+									break;
 								}
-								Collections.reverse(nsegments);
-								if (clindex!=-1) nsegments.set(0,word.substring(0,clindex+1)+nsegments.get(0));
-								gr.getParts().get(0).getTags().put("SEGMENT", nsegments);
+								if (empty) continue;
+								gr.getParts().get(0).getTags().remove("GUESS_CATEGORY");
+								gr.getParts().get(0).getTags().remove("KAV");
+								gr.getParts().get(0).getTags().remove("PROPER");
+								gr.getParts().get(0).getTags().remove("SEM");
+								List<String> pos = gr.getParts().get(0).getTags().get("UPOS");
+								if (pos!=null) for (int j=0;j<pos.size();j++)
+									if (pos.get(j).equals("PROPN")) pos.set(j,"NOUN");
+								gr.getParts().get(0).setLemma(word.substring(0,word.length()-length-1)+gr.getParts().get(0).getLemma());
+								List<String> gsegments = gr.getParts().get(0).getTags().get("SEGMENT");
+								if (gsegments!=null) {
+									List<String> nsegments = new ArrayList<String>();
+									int clindex = word.length()-1;
+									for (int j=gsegments.size()-1;j>=0;j--) {
+										String cs = gsegments.get(j);
+										if (cs.contains("{WB}")) continue outer;
+										int cindex = cs.length()-1; 
+										while (cindex>=0 && clindex>=0) {
+											if (cs.charAt(cindex)=='»') cindex--;
+											else {
+												String tmp = cs.substring(0,cindex+1);
+												if (tmp.endsWith("{WB}") || tmp.endsWith("{XB}") || tmp.endsWith("{DB}") || tmp.endsWith("{MB}")) cindex-=4;
+												else if (tmp.endsWith("{STUB}")) cindex-=6;
+												else if (tmp.endsWith("{hyph?}")) cindex-=7;
+												else if (word.charAt(clindex--)!=cs.charAt(cindex--)) break;
+											}
+										}
+										if (cindex!=-1) {
+											nsegments.add(word.substring(0,clindex+2) + cs.substring(cindex+2));
+											clindex=-1;
+											break;
+										} else nsegments.add(gsegments.get(j));
+										if (j!=0 && clindex==-1) continue outer;
+									}
+									Collections.reverse(nsegments);
+									if (clindex!=-1) nsegments.set(0,word.substring(0,clindex+1)+nsegments.get(0));
+									gr.getParts().get(0).getTags().put("SEGMENT", nsegments);
+								}
+								gres.putOrAdd(gr, 1, 1);
 							}
-							gres.putOrAdd(gr, 1, 1);
+							gres.forEach(new ObjectIntProcedure<Result>() {
+								public void apply(Result value, int v2) { value.setWeight(value.getWeight()/v2);value.addGlobalTag("GUESS_COUNT",""+v2); r.add(value); };
+							});
 						}
-						gres.forEach(new ObjectIntProcedure<Result>() {
-							public void apply(Result value, int v2) { value.setWeight(value.getWeight()/v2);value.addGlobalTag("GUESS_COUNT",""+v2); r.add(value); };
-						});
 					}
 				}
 				if (r.isEmpty())
