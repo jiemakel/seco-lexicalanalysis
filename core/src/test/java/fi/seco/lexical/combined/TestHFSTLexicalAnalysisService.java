@@ -4,11 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
@@ -67,5 +63,10 @@ public class TestHFSTLexicalAnalysisService {
 		assertEquals("juosta, läpi yö",las.baseform("juoksin, läpi yön",new Locale("fi"), false, true, 0));
 		assertEquals("mobil apparat",las.baseform("mobila apparater",new Locale("sv"), false, true, 0));
 	}
-	
+
+	@Test
+	public void testInflection() {
+		assertTrue("Inflection support is not working! "+las.getSupportedInflectionLocales(),las.getSupportedInflectionLocales().contains(new Locale("fi")));
+		assertEquals("Albert ostaminen fagotit ja töräyttäminen puhkuminen melodiat",las.inflect("Albert osti fagotin ja töräytti puhkuvan melodian", Arrays.asList(new String[] {"V N Nom Sg", "N Nom Pl", "A Pos Nom Pl"}),false , false, false, 0, new Locale("fi")));
+	}
 }

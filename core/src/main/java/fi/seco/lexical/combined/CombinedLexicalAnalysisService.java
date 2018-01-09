@@ -7,17 +7,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
+import java.net.URL;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
@@ -60,11 +51,27 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 
 	private static final Logger log = LoggerFactory.getLogger(CombinedLexicalAnalysisService.class);
 
-	private final Map<Locale, SentenceModel> sdMap = new HashMap<Locale, SentenceModel>();
-	private final Map<Locale, TokenizerModel> tMap = new HashMap<Locale, TokenizerModel>();
-	private final Map<Locale, ObjectLongMap<String>> fMap = new HashMap<Locale, ObjectLongMap<String>>();
+	private final Map<Locale, SentenceModel> sdMap = new HashMap<>();
+	private final Map<Locale, TokenizerModel> tMap = new HashMap<>();
+	private final Map<Locale, ObjectLongMap<String>> fMap = new HashMap<>();
 
-	private final Set<Locale> supportedLocales = Collections.singleton(new Locale("fi"));
+	private final static Set<Locale> supportedLocales = new HashSet<>();
+
+	static {
+		List<String> resources = new ArrayList<String>();
+		try {
+			Enumeration<URL> paths = HFSTLexicalAnalysisService.class.getClassLoader().getResources("fi/seco/lexical/combined/resources.lst");
+			while (paths.hasMoreElements()) {
+				URL nextElem = paths.nextElement();
+				BufferedReader br = new BufferedReader(new InputStreamReader(nextElem.openConnection().getInputStream()));
+				String resource;
+				while ((resource = br.readLine()) != null) resources.add(resource);
+			}
+		} catch (IOException e) {
+			throw new IllegalArgumentException("Couldn't read transducer information");
+		}
+		resources.stream().filter(r -> r.endsWith("-sent.bin")).forEach(r -> supportedLocales.add(new Locale(r.substring(0, r.indexOf('-')))));
+	}
 
 	private SentenceDetector getSentenceDetector(Locale lang) {
 		SentenceModel sd = sdMap.get(lang);
@@ -86,7 +93,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	private ObjectLongMap<String> getFrequencyMap(Locale lang) {
 		ObjectLongMap<String> f = fMap.get(lang);
 		if (f != null) return f;
-		f = new ObjectLongHashMap<String>();		
+		f = new ObjectLongHashMap<>();
 		BufferedReader ff = new BufferedReader(new InputStreamReader(CombinedLexicalAnalysisService.class.getResourceAsStream(lang + "-lemma-frequencies.txt")));
 		try {
 		while (true) {

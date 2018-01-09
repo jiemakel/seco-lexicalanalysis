@@ -3,4 +3,4 @@ target
 .settings
 .project
 .classpath
-src/main/resources/
+*/src/main/resources/

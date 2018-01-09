@@ -6,16 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -39,22 +30,22 @@ import marmot.util.StringUtils;
 public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	private static final Logger log = LoggerFactory.getLogger(HFSTLexicalAnalysisService.class);
 
-	protected final Map<Locale, Transducer> analysisTransducers = new HashMap<Locale, Transducer>();
-	protected final Map<Locale, char[]> alphabets = new HashMap<Locale, char[]>();
-	private final Map<Locale, Transducer> hyphenationTransducers = new HashMap<Locale, Transducer>();
-	protected final Map<Locale, Transducer> inflectionTransducers = new HashMap<Locale, Transducer>();
-	protected final Map<Locale, Transducer> guessTransducers = new HashMap<Locale, Transducer>();
-	protected final Map<Locale, Transducer> guessSegmentTransducers = new HashMap<Locale, Transducer>();
-	protected final Map<Locale, Transducer> fuzzyTransducers = new HashMap<Locale, Transducer>();
-	protected final Map<Locale, Transducer> fuzzySegmentTransducers = new HashMap<Locale, Transducer>();
+	protected final static Map<Locale, Transducer> analysisTransducers = new HashMap<Locale, Transducer>();
+	protected final static Map<Locale, char[]> alphabets = new HashMap<>();
+	private final static Map<Locale, Transducer> hyphenationTransducers = new HashMap<Locale, Transducer>();
+	protected final static Map<Locale, Transducer> inflectionTransducers = new HashMap<Locale, Transducer>();
+	protected final static Map<Locale, Transducer> guessTransducers = new HashMap<Locale, Transducer>();
+	protected final static Map<Locale, Transducer> guessSegmentTransducers = new HashMap<Locale, Transducer>();
+	protected final static Map<Locale, Transducer> fuzzyTransducers = new HashMap<Locale, Transducer>();
+	protected final static Map<Locale, Transducer> fuzzySegmentTransducers = new HashMap<Locale, Transducer>();
 
-	private final Collection<Locale> supportedAnalyzeLocales = new ArrayList<Locale>();
-	private final Collection<Locale> supportedGuessLocales = new ArrayList<Locale>();
-	private final Collection<Locale> supportedHyphenationLocales = new ArrayList<Locale>();
-	private final Collection<Locale> supportedFuzzyLocales = new ArrayList<Locale>();
-	protected final Collection<Locale> supportedInflectionLocales = new ArrayList<Locale>();
+	private final static Set<Locale> supportedAnalyzeLocales = new HashSet<>();
+	private final static Set<Locale> supportedGuessLocales = new HashSet<>();
+	private final static Set<Locale> supportedHyphenationLocales = new HashSet<>();
+	private final static Set<Locale> supportedFuzzyLocales = new HashSet<>();
+	protected final static Set<Locale> supportedInflectionLocales = new HashSet<>();
 	
-	private final Map<Locale, String[]> inflectionTags = new HashMap<Locale, String[]>();
+	private final static Map<Locale, String[]> inflectionTags = new HashMap<Locale, String[]>();
 	
 	protected List<String> getEditDistance(Locale l, String string, int distance) {
 		List<String> ret = new ArrayList<String>();
@@ -185,12 +176,13 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 
 	}
 
-	public HFSTLexicalAnalysisService() {
+	static {
 		List<String> resources = new ArrayList<String>();
 		try {
-			Enumeration<URL> paths = HFSTLexicalAnalysisService.class.getClassLoader().getResources("fi/seco/lexical/hfst");
+			Enumeration<URL> paths = HFSTLexicalAnalysisService.class.getClassLoader().getResources("fi/seco/lexical/hfst/resources.lst");
 			while (paths.hasMoreElements()) {
-				BufferedReader br = new BufferedReader(new InputStreamReader(paths.nextElement().openStream()));
+				URL nextElem = paths.nextElement();
+				BufferedReader br = new BufferedReader(new InputStreamReader(nextElem.openConnection().getInputStream()));
 				String resource;
 				while ((resource = br.readLine()) != null) resources.add(resource);
 			}
@@ -198,7 +190,20 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 		   throw new IllegalArgumentException("Couldn't read transducer information");
 		}
 		resources.stream().filter(r -> r.endsWith("-analysis.hfst.ol")).forEach(r -> supportedAnalyzeLocales.add(new Locale(r.substring(0, r.indexOf('-')))));
-		resources.stream().filter(r -> r.endsWith("-inflection.hfst.ol")).forEach(r -> supportedInflectionLocales.add(new Locale(r.substring(0, r.indexOf('-')))));
+		resources.stream().filter(r -> r.endsWith("-inflection.hfst.ol")).forEach(r -> {
+		  String localeS = r.substring(0, r.indexOf('-'));
+		  Locale locale = new Locale(localeS);
+                  supportedInflectionLocales.add(locale);
+		  try {
+  			BufferedReader br = new BufferedReader(new InputStreamReader(HFSTLexicalAnalysisService.class.getResourceAsStream(localeS+"-inflection-tags.conf")));
+                        String line = br.readLine();
+			br.close();
+		        String[] parts = line.split(":",-1);
+                        inflectionTags.put(locale,parts);
+                  } catch (Exception e) {
+			throw new IllegalArgumentException("Couldn't read inflection configuration for locale "+locale);
+                  }
+                });
 		resources.stream().filter(r -> r.endsWith("-hyphenation.hfst.ol")).forEach(r -> supportedHyphenationLocales.add(new Locale(r.substring(0, r.indexOf('-')))));
 		resources.stream().filter(r -> r.endsWith("-analysis-guess.hfst.ol")).forEach(r -> supportedGuessLocales.add(new Locale(r.substring(0, r.indexOf('-')))));
 		resources.stream().filter(r -> r.endsWith("-analysis-fuzzy.hfst.ol")).forEach(r -> supportedFuzzyLocales.add(new Locale(r.substring(0, r.indexOf('-')))));
@@ -717,9 +722,8 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 			if (!inflected.isEmpty())
 				ret.append(inflected);
 			else ret.append(part.getWord());
-			ret.append(' ');
 		}
-		return ret.toString().trim();
+		return ret.toString();
 	}
 
 	protected String getBestInflection(WordToResults cr, Locale lang, boolean segments, boolean baseform) {
