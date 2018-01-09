@@ -60,7 +60,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 	static {
 		List<String> resources = new ArrayList<String>();
 		try {
-			Enumeration<URL> paths = HFSTLexicalAnalysisService.class.getClassLoader().getResources("fi/seco/lexical/combined/resources.lst");
+			Enumeration<URL> paths = CombinedLexicalAnalysisService.class.getClassLoader().getResources("fi/seco/lexical/combined/resources.lst");
 			while (paths.hasMoreElements()) {
 				URL nextElem = paths.nextElement();
 				BufferedReader br = new BufferedReader(new InputStreamReader(nextElem.openConnection().getInputStream()));
