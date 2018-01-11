@@ -162,6 +162,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 			Long2Int l2i = new Long2Int(params.size());
 			fiparser.l2i = l2i;
 			int THREADS = Runtime.getRuntime().availableProcessors();
+			Parser.THREADS = THREADS;
 			pipe.extractor = new Extractor[THREADS];
 
 			boolean stack = dis.readBoolean();
