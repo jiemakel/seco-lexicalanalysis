@@ -36,6 +36,7 @@ import is2.parser.ParametersFloat;
 import is2.parser.Parser;
 import is2.parser.Pipe;
 import is2.util.OptionsSuper;
+import is2.util.DB;
 import marmot.core.Tagger;
 import marmot.morph.Sentence;
 import marmot.morph.Word;
@@ -147,6 +148,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 
 	static {
 		try {
+			DB.setDebug(false);
 			OptionsSuper options = new OptionsSuper();
 			fiparser.options = options;
 			Pipe pipe = new Pipe(options);
