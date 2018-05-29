@@ -47,20 +47,20 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 	
 	private final static Map<Locale, String[]> inflectionTags = new HashMap<Locale, String[]>();
 	
-	protected List<String> getEditDistance(Locale l, String string, int distance) {
+	public static List<String> getEditDistance(String string, int distance) {
 		List<String> ret = new ArrayList<String>();
-		getEditDistance(l,ret,"",string,distance);
+		getEditDistance(ret,"",string,distance);
 		return ret;
 	}
 	
-	protected void getEditDistance(Locale l, List<String> ret, String prefix, String string, int distance) {
+	protected static void getEditDistance(List<String> ret, String prefix, String string, int distance) {
 		StringBuilder sb = new StringBuilder();
 		for (int i=string.length()-1;i>=0;i--) {
 			sb.setLength(0);
 			sb.append(prefix);
 			sb.append(string.substring(0,i));
 			if (distance>1)
-				getEditDistance(l,ret,sb.toString(),string.substring(i+1),distance-1);
+				getEditDistance(ret,sb.toString(),string.substring(i+1),distance-1);
 			else {
 				sb.append(string.substring(i+1));
 				ret.add(sb.toString());
@@ -479,7 +479,7 @@ public class HFSTLexicalAnalysisService extends ALexicalAnalysisService {
 				if (r.isEmpty() && maxErrorCorrectDistance>0 && supportedFuzzyLocales.contains(lang) ) {
 					Transducer tc2 = segmentUnknown ? getTransducer(lang,"analysis-fuzzy-segment",fuzzySegmentTransducers) : getTransducer(lang,"analysis-fuzzy",fuzzyTransducers);
 					for (int j=1;j<=maxErrorCorrectDistance;j++) {
-						for (String c : getEditDistance(lang, label,j)) {
+						for (String c : getEditDistance(label,j)) {
 							List<Transducer.Result> res2 = tc2.analyze(c);
 							for (Transducer.Result r2: res2)
 								if (r2.getWeight()<(j+1)*1000)

@@ -92,6 +92,12 @@ public class TestCombinedLexicalAnalysisService {
 		assertEquals("suvakki ja Soldiers of Odin",las.baseform("suvakeilla ja Soldiers of Odineille",new Locale("fi"), false, true, 0));
 		assertEquals("mobil apparat",las.baseform("mobila apparater",new Locale("sv"), false, true, 0));
 	}
+
+	@Test
+	public void testThatOCRCorrectionAndGuessingBothGetABestMatch() {
+		List<WordToResults> results = las.analyze("maalieja", new Locale("fi"),Collections.EMPTY_LIST,false,true,false,1,1);
+		assertEquals(2, results.get(0).getAnalysis().stream().filter(r -> r.getGlobalTags().containsKey("BEST_MATCH")).count());
+	}
 	
 	@Test
 	public void testAnalysisOrdering() {

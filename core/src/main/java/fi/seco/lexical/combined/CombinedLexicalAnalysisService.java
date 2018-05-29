@@ -317,7 +317,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					if (maxErrorCorrectDistance>0) {
 						Transducer tc2 = segmentUnknown ? getTransducer(lang,"analysis-fuzzy-segment",fuzzySegmentTransducers) : getTransducer(lang,"analysis-fuzzy",fuzzyTransducers);
 						for (int j=1;j<=maxErrorCorrectDistance;j++) {
-							for (String c : getEditDistance(lang, word,j)) {
+							for (String c : getEditDistance(word,j)) {
 								List<Transducer.Result> res2 = tc2.analyze(c);
 								for (Transducer.Result r2: res2)
 									if (r2.getWeight()<(j+1)*1000)
@@ -491,6 +491,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 				ObjectLongMap<String> fMap = getFrequencyMap(lang);
 				int guessCount = 0;
 				long frequency = 0;
+				List<Result> bestEdits = new ArrayList<>();
 				for (Result res : wtr.getAnalysis()) {
 					StringBuilder lemma = new StringBuilder();
 					for (WordPart p : res.getParts()) {
@@ -513,7 +514,15 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 					} else if (!FIRST_LETTER_MATCH || res.getGlobalTags().get("FIRST_IN_SENTENCE")!=null || res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0)) {
 						if (POS_MATCH) { // last is already a POS MATCH
 							if (res.getGlobalTags().containsKey("POS_MATCH")) {
-								if (res.getWeight() < cw) {
+                                if (guessCount == 0 && ngc != 0) {
+                                    bestEdits.addAll(bestResult);
+                                    bestResult.clear();
+                                    bestResult.add(res);
+                                    cw = res.getWeight();
+                                    guessCount=ngc;
+                                    frequency = myFrequency;
+                                    FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+                                } else if (res.getWeight() < cw) {
 									bestResult.clear();
 									bestResult.add(res);
 									cw = res.getWeight();
@@ -545,7 +554,15 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 							guessCount=ngc;
 							frequency = myFrequency;
 							FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
-						} else if (res.getWeight() < cw) {
+						} else if (guessCount == 0 && ngc != 0) {
+                            bestEdits.addAll(bestResult);
+                            bestResult.clear();
+                            bestResult.add(res);
+                            cw = res.getWeight();
+                            guessCount=ngc;
+                            frequency = myFrequency;
+                            FIRST_LETTER_MATCH = res.getParts().get(0).getLemma().charAt(0)==wtr.getWord().charAt(0);
+                        } else if (res.getWeight() < cw) {
 							bestResult.clear();
 							bestResult.add(res);
 							cw = res.getWeight();
@@ -570,6 +587,7 @@ public class CombinedLexicalAnalysisService extends HFSTLexicalAnalysisService {
 						}
 					}
 				}
+				bestResult.addAll(bestEdits);
 				for (Result res : bestResult)
 					res.addGlobalTag("BEST_MATCH", "TRUE");
 				Collections.sort(wtr.getAnalysis(), resultComparator);
